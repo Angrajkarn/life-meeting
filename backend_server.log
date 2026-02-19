@@ -1,0 +1,379 @@
+Backend started
+INFO:     Started server process [4556]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[Startup] Redis client initialized for reaction rate limiting
+MongoDB connected successfully
+[Scheduler] Meeting status engine started.
+[Startup] Meeting scheduler and MongoDB started
+INFO:     127.0.0.1:56818 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56818 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64300 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60350 - "OPTIONS /chat/channels HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62381 - "OPTIONS /chat/presence HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64300 - "OPTIONS /users/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62381 - "GET /chat/presence HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64300 - "GET /chat/channels HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60350 - "GET /users/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60350 - "OPTIONS /notifications?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "OPTIONS /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "OPTIONS /notifications/activity?limit=20&skip=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60350 - "GET /notifications?limit=20 HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:64300 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "GET /notifications/activity?limit=20&skip=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "OPTIONS /notifications/?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51975 - "GET /notifications/?limit=20 HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49672) - "WebSocket /ws/dashboard/guest" [accepted]
+Traceback (most recent call last):
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\routes\websocket.py", line 30, in websocket_endpoint
+    await manager.connect(websocket, meeting_id, user_id)
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\websocket_manager.py", line 34, in connect
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 103, in __init__
+    self.__validate(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 201, in __validate
+    _raise_invalid_id(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 35, in _raise_invalid_id
+    raise InvalidId(
+bson.errors.InvalidId: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 56817) - "WebSocket /ws/dashboard/guest" [accepted]
+Traceback (most recent call last):
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\routes\websocket.py", line 30, in websocket_endpoint
+    await manager.connect(websocket, meeting_id, user_id)
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\websocket_manager.py", line 34, in connect
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 103, in __init__
+    self.__validate(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 201, in __validate
+    _raise_invalid_id(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 35, in _raise_invalid_id
+    raise InvalidId(
+bson.errors.InvalidId: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+INFO:     connection open
+INFO:     ('127.0.0.1', 56539) - "WebSocket /ws/dashboard/guest" [accepted]
+Traceback (most recent call last):
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\routes\websocket.py", line 30, in websocket_endpoint
+    await manager.connect(websocket, meeting_id, user_id)
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\websocket_manager.py", line 34, in connect
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 103, in __init__
+    self.__validate(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 201, in __validate
+    _raise_invalid_id(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 35, in _raise_invalid_id
+    raise InvalidId(
+bson.errors.InvalidId: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     ('127.0.0.1', 62369) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 57895) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 55944) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 59633) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 59089) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 58529) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     ('127.0.0.1', 63815) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 52908) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 58049) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: 'guest'
+[WebSocket] Accepting connection for user guest in meeting dashboard
+[Manager] Accepting WebSocket for user 'guest' in meeting 'dashboard'
+[Manager] ERROR during connection: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+WebSocket Error: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: 'guest'
+[WebSocket] Accepting connection for user guest in meeting dashboard
+[Manager] Accepting WebSocket for user 'guest' in meeting 'dashboard'
+[Manager] ERROR during connection: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+WebSocket Error: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: 'guest'
+[WebSocket] Accepting connection for user guest in meeting dashboard
+[Manager] Accepting WebSocket for user 'guest' in meeting 'dashboard'
+[Manager] ERROR during connection: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+WebSocket Error: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 1
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 2
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 3
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 4
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 5
+[WebSocket] Connection established successfully
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 5
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 4
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 5
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 6
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:49672 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49672 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61998 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62283 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62283 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64169 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54944 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65294 - "GET /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65294 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65294 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65294 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49671) - "WebSocket /ws/dashboard/guest" [accepted]
+Traceback (most recent call last):
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\routes\websocket.py", line 30, in websocket_endpoint
+    await manager.connect(websocket, meeting_id, user_id)
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\websocket_manager.py", line 34, in connect
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 103, in __init__
+    self.__validate(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 201, in __validate
+    _raise_invalid_id(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 35, in _raise_invalid_id
+    raise InvalidId(
+bson.errors.InvalidId: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 51225) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 58908) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+Traceback (most recent call last):
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\routes\websocket.py", line 154, in websocket_endpoint
+    data = await websocket.receive_text()
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\starlette\websockets.py", line 115, in receive_text
+    raise RuntimeError(
+RuntimeError: WebSocket is not connected. Need to call "accept" first.
+INFO:     connection closed
+INFO:     ('127.0.0.1', 58744) - "WebSocket /ws/dashboard/698451309771276db0005b92" [accepted]
+INFO:     connection open
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: 'guest'
+[WebSocket] Accepting connection for user guest in meeting dashboard
+[Manager] Accepting WebSocket for user 'guest' in meeting 'dashboard'
+[Manager] ERROR during connection: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+WebSocket Error: 'guest' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 7
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 8
+[WebSocket] Connection established successfully
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+WebSocket Error: WebSocket is not connected. Need to call "accept" first.
+[WebSocket] Connection attempt - Meeting: 'dashboard', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting dashboard
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting 'dashboard'
+[Manager] Connection registered. Total meeting connections 'dashboard': 8
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:60942 - "OPTIONS /meetings/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60942 - "POST /meetings/ HTTP/1.1" 201 Created
+INFO:     127.0.0.1:50827 - "OPTIONS /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50827 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50827 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55783 - "OPTIONS /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55783 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 63411) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Cannot call "send" once a close message has been sent.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Cannot call "send" once a close message has been sent.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Cannot call "send" once a close message has been sent.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Cannot call "send" once a close message has been sent.
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': 
+[Manager] Error sending message to user '698451309771276db0005b92' in meeting 'dashboard': Cannot call "send" once a close message has been sent.
+INFO:     127.0.0.1:54382 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65023 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65023 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49402) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 58295) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 61817) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+INFO:     connection closed
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:58093 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54448 - "OPTIONS /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54448 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58093 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58007 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54571 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58007 - "OPTIONS /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58007 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62703 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65030 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65030 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 65514) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:53070 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59303 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49676 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63439 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     ('127.0.0.1', 54572) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:63439 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56235 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64278 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57410 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64065 - "OPTIONS /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64065 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57410 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:53057 - "OPTIONS /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58554 - "OPTIONS /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58554 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53057 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "OPTIONS /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57267 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49782) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/guest_qiz1cg39c" [accepted]
+Traceback (most recent call last):
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\routes\websocket.py", line 30, in websocket_endpoint
+    await manager.connect(websocket, meeting_id, user_id)
+  File "C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\backend\websocket_manager.py", line 34, in connect
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 103, in __init__
+    self.__validate(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 201, in __validate
+    _raise_invalid_id(oid)
+  File "C:\Users\Nivedita\AppData\Local\Programs\Python\Python310\lib\site-packages\bson\objectid.py", line 35, in _raise_invalid_id
+    raise InvalidId(
+bson.errors.InvalidId: 'guest_qiz1cg39c' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 49178) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: 'guest_qiz1cg39c'
+[WebSocket] Accepting connection for user guest_qiz1cg39c in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user 'guest_qiz1cg39c' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] ERROR during connection: 'guest_qiz1cg39c' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+WebSocket Error: 'guest_qiz1cg39c' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:50772 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59570 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:53588 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63212 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63212 - "GET /meetings/69934e3d21d4f8d3b84388f6/chat HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 51026) - "WebSocket /ws/69934e3d21d4f8d3b84388f6/698451309771276db0005b92" [accepted]
+INFO:     connection open
+[WebSocket] Connection attempt - Meeting: '69934e3d21d4f8d3b84388f6', User: '698451309771276db0005b92'
+[WebSocket] Accepting connection for user 698451309771276db0005b92 in meeting 69934e3d21d4f8d3b84388f6
+[Manager] Accepting WebSocket for user '698451309771276db0005b92' in meeting '69934e3d21d4f8d3b84388f6'
+[Manager] Connection registered. Total meeting connections '69934e3d21d4f8d3b84388f6': 1
+[WebSocket] Connection established successfully
+INFO:     127.0.0.1:63946 - "GET /meetings/code/sab-huv-tmu HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53742 - "GET /users/me HTTP/1.1" 200 OK
+INFO:     connection closed

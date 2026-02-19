@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Cancelled</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
+        .header { background: #ef4444; padding: 30px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+        .content { padding: 40px; }
+        .meeting-title { font-size: 20px; font-weight: 700; color: #991b1b; margin-bottom: 20px; text-decoration: line-through; }
+        .cancellation-notice { background: #fef2f2; border-radius: 8px; padding: 25px; border-left: 4px solid #ef4444; margin-bottom: 30px; }
+        .cancellation-notice h3 { margin: 0 0 10px 0; color: #991b1b; font-size: 16px; font-weight: 800; }
+        .footer { padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Meeting Cancelled</h1>
+        </div>
+        <div class="content">
+            <h2 class="meeting-title">{{ title }}</h2>
+            
+            <div class="cancellation-notice">
+                <h3>NOTICE OF CANCELLATION</h3>
+                <p style="margin: 0; color: #b91c1c;">The collaboration session originally scheduled for <strong>{{ date }}</strong> at <strong>{{ time }}</strong> has been cancelled by the organizer.</p>
+            </div>
+
+            <p>This slot has been released back to your calendar. No further action is required from your side.</p>
+        </div>
+        <div class="footer">
+            &copy; 2026 Life Meeting Enterprise. All rights reserved.<br>
+            Efficient lifecycle management for your sessions.
+        </div>
+    </div>
+</body>
+</html>

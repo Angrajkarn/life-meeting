@@ -1,0 +1,38 @@
+
+> life-meeting@0.1.0 lint
+> eslint
+
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\app\meeting\[id]\page.tsx
+   4:10  warning  'ControlBar' is defined but never used     @typescript-eslint/no-unused-vars
+  45:10  warning  'Button' is defined but never used         @typescript-eslint/no-unused-vars
+  46:10  warning  'MessageSquare' is defined but never used  @typescript-eslint/no-unused-vars
+  51:30  warning  'onChatToggle' is defined but never used   @typescript-eslint/no-unused-vars
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\features.tsx
+  16:11  warning  'item' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\footer.tsx
+  24:38  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\meeting\control-bar.tsx
+  4:83  warning  'Settings' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\sidebar.tsx
+  14:5  warning  'MessageSquare' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\stats.tsx
+  3:10  warning  'motion' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\ui\avatar.tsx
+  25:5  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  25:5  warning  img elements must have an alt prop, either with meaningful text, or an empty string for decorative images                                                                                                                                                                                jsx-a11y/alt-text
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\ui\button.tsx
+  2:10  warning  'Slot' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Nivedita\.gemini\antigravity\scratch\life-meeting\components\ui\input.tsx
+  4:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+Γ£û 13 problems (2 errors, 11 warnings)
+

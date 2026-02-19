@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatar    String?  // URL to avatar image
+  role      String   @default("Member") // "Admin", "Member"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meetings     Participant[]
+  hosted       Meeting[]     @relation("HostedBy")
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  status      String   @default("scheduled") // "scheduled", "live", "completed", "cancelled"
+  type        String   @default("video") // "video", "audio", "hybrid"
+  
+  // Smart Context Fields
+  goal        String?  // e.g. "Decision Making", "Brainstorming"
+  tags        String?  // stored as comma separated for SQLite simplicity
+  
+  hostId      String
+  host        User     @relation("HostedBy", fields: [hostId], references: [id])
+  
+  participants Participant[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Participant {
+  id        String  @id @default(uuid())
+  userId    String
+  meetingId String
+  status    String  @default("accepted") // "accepted", "declined", "pending"
+  
+  user      User    @relation(fields: [userId], references: [id])
+  meeting   Meeting @relation(fields: [meetingId], references: [id])
+
+  @@unique([userId, meetingId])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  action      String   // "Created Meeting", "Joined Meeting", "Updated Settings"
+  description String
+  userId      String?
+  timestamp   DateTime @default(now())
+}

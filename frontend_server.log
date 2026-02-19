@@ -1,0 +1,59 @@
+Frontend started
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.225.107.198:3000
+- Environments: .env
+
+Γ£ô Starting...
+Γ£ô Ready in 5.2s
+Γ£ô Finished filesystem cache database compaction in 36.1s
+Γùï Compiling / ...
+ GET / 200 in 15.6s (compile: 14.3s, render: 1324ms)
+Γùï Compiling /dashboard ...
+ GET /dashboard 200 in 10.2s (compile: 9.6s, render: 621ms)
+Γùï Compiling /meeting/lobby ...
+ GET /meeting/lobby 200 in 3.6s (compile: 3.6s, render: 38ms)
+ GET /meeting/sab-huv-tmu?join=1 200 in 2.0s (compile: 1829ms, render: 171ms)
+ GET /meeting/sab-huv-tmu?join=1 200 in 583ms (compile: 16ms, render: 566ms)
+Γ£ô Compiled in 7.7s
+Γ£ô Compiled in 5.2s
+Γ£ô Compiled in 8.4s
+Γ£ô Finished writing to filesystem cache in 22.7s
+Γ£ô Compiled in 6.9s
+ΓÜá Fast Refresh had to perform a full reload due to a runtime error.
+ GET /meeting/sab-huv-tmu?join=1 200 in 10.8s (compile: 1607ms, render: 9.1s)
+Γ£ô Finished filesystem cache database compaction in 24.8s
+ GET /meeting/sab-huv-tmu?join=1 200 in 889ms (compile: 255ms, render: 634ms)
+Γ£ô Finished filesystem cache database compaction in 59s
+Γ£ô Compiled in 11.3s
+ΓÜá Fast Refresh had to perform a full reload due to a runtime error.
+ GET /meeting/sab-huv-tmu?join=1 200 in 14.5s (compile: 3.3s, render: 11.2s)
+Γ£ô Finished writing to filesystem cache in 15.6s
+Γ£ô Finished filesystem cache database compaction in 101s
+Γ£ô Finished writing to filesystem cache in 99s
+Γ£ô Compiled in 4.2s
+Γ£ô Finished writing to filesystem cache in 13.5s
+Γ£ô Compiled in 4.3s
+Γ£ô Compiled in 13s
+Γ£ô Compiled in 10.9s
+Γ£ô Compiled in 7.9s
+Γ£ô Finished writing to filesystem cache in 11.0s
+Γ£ô Finished filesystem cache database compaction in 68s
+Γ£ô Compiled in 51s
+Γ£ô Finished filesystem cache database compaction in 84s
+Γ£ô Compiled in 4.4s
+Γ£ô Finished writing to filesystem cache in 10.6s
+Γ£ô Compiled in 2.8s
+Γ£ô Finished writing to filesystem cache in 12.9s
+Γ£ô Compiled in 3.3s
+Γ£ô Compiled in 2s
+Γ£ô Compiled in 5.8s
+Γ£ô Compiled in 2.9s
+Γ£ô Compiled in 3.1s
+ΓÜá Fast Refresh had to perform a full reload due to a runtime error.
+ GET /meeting/sab-huv-tmu?join=1 200 in 4.1s (compile: 1821ms, render: 2.2s)
+Γ£ô Finished filesystem cache database compaction in 67s
+Γ£ô Finished writing to filesystem cache in 64s
+Γ£ô Finished filesystem cache database compaction in 53s
+Γ£ô Finished writing to filesystem cache in 53s
+ GET /meeting/sab-huv-tmu?join=1 200 in 327ms (compile: 40ms, render: 287ms)

@@ -1,0 +1,63 @@
+/* Reaction Animation Keyframes */
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-100px) scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-200px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-float-up {
+  animation: float-up 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in;
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up {
+    animation: fade-in 1s ease-in;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .reaction-picker {
+    border: 2px solid currentColor;
+  }
+
+  .floating-reaction {
+    filter: contrast(1.5);
+  }
+}
+
+/* Screen Reader Only Class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

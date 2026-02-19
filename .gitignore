@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+backend/venv/
+backend/.env
+backend/serviceAccountKey.json
+
+# Node
+node_modules/
+.next/
+out/
+build/
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
