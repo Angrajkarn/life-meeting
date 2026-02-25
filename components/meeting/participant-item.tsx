@@ -80,6 +80,15 @@ export function ParticipantItem({ participant, isHost, isMe, onAction }: Partici
                         <DropdownMenuContent side="left" align="start" sideOffset={5} className="w-56 z-50">
                             <DropdownMenuLabel>Manage Participant</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            
+                            {participant.isHandRaised && (
+                                <>
+                                    <DropdownMenuItem onClick={() => onAction('lower_hand', participant.id)}>
+                                        <Hand className="w-4 h-4 mr-2 text-yellow-500" /> Lower Hand
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                </>
+                            )}
 
                             {/* AUDIO CONTROLS */}
                             <DropdownMenuGroup>

@@ -1,0 +1,128 @@
+
+> sfu-server@1.0.0 dev
+> nodemon --watch src --exec ts-node src/server.ts
+
+[33m[nodemon] 3.1.11[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): src\**\*[39m
+[33m[nodemon] watching extensions: ts,json[39m
+[32m[nodemon] starting `ts-node src/server.ts`[39m
+ΓÜá∩╕Å [Signaling] Using In-Memory Mock Adapter (Redis not available)
+[Mediasoup] Router created: 915a8385-cede-4854-a024-a2f7abfe917d
+SFU Server listening on port 4000
+Client connected: aOgqyC3TU7OUuQiGAAAB
+Client disconnected: aOgqyC3TU7OUuQiGAAAB
+Client connected: zgDZWR_Haujh5dvkAAAE
+[Transport 8772fc2f-31dd-4e60-a2c5-78d1ce30a8ea] ICE State: connected
+[Transport 8772fc2f-31dd-4e60-a2c5-78d1ce30a8ea] DTLS State: connecting
+[Transport 8772fc2f-31dd-4e60-a2c5-78d1ce30a8ea] ICE State: completed
+[Transport 8772fc2f-31dd-4e60-a2c5-78d1ce30a8ea] DTLS State: connected
+Transport new producer: 84503753-455f-47bb-8a3c-6334e883c21a
+Transport new producer: d95d6403-b171-40c2-84bc-4087b229fafd
+Transport new producer: c2a198d7-a3fd-437a-bf91-815f8531f260
+Transport new producer: a122d60a-9e6f-4acd-a2d8-8107164117d4
+Transport new producer: 6b71dc02-4412-4a96-a7ce-d5181b9102d2
+Transport new producer: b2b826ad-6d5a-4d06-bb3d-2c421fdfaf28
+Transport new producer: 6b5d6ed4-4030-4888-b947-339d83260990
+Transport new producer: bac891ef-c469-4361-a74b-07b75faa12f4
+Client connected: Gzsj0n_YbBqbQb4cAAAG
+[Transport e74c9279-4763-48f5-9df7-0bf0243db1cf] ICE State: connected
+[Transport e74c9279-4763-48f5-9df7-0bf0243db1cf] DTLS State: connecting
+[Transport e74c9279-4763-48f5-9df7-0bf0243db1cf] ICE State: completed
+[Transport e74c9279-4763-48f5-9df7-0bf0243db1cf] DTLS State: connected
+[Transport 3d4f662b-de1e-4d51-8a3c-0a180ba7a8d9] ICE State: connected
+[Transport 3d4f662b-de1e-4d51-8a3c-0a180ba7a8d9] DTLS State: connecting
+[Transport 3d4f662b-de1e-4d51-8a3c-0a180ba7a8d9] DTLS State: connected
+Transport new producer: c9d9960d-58ec-4f75-b860-873b172d1ba0
+Transport new producer: f14a4fd8-3c44-4cf3-a99d-07e3e7eb0885
+[Transport 3d4f662b-de1e-4d51-8a3c-0a180ba7a8d9] ICE State: completed
+Transport new producer: 6efcdf27-374d-4fbd-939d-78c8a9d5ed90
+Transport new producer: b3058df5-83ce-457b-a794-d61f046baf43
+Transport new producer: f2fa1536-f501-4982-a539-ea084220bfed
+Transport new producer: b4a80319-5e6b-480e-934e-95b3772ed1a1
+Transport new producer: dbd038b7-a682-4b09-8774-5e09aaaa7e2f
+Transport new producer: 72f47871-0fce-4faa-9530-6133852fba43
+Transport new producer: d1f42e46-4f07-48e2-ba4d-4c61ae23a842
+Transport new producer: 86dac142-17da-441d-a118-42a0684cf574
+Transport new producer: e7bd224b-b12a-4f12-bc25-f920b0aceb12
+Transport new producer: 7033a8a7-1a28-4c18-be24-e09084264da8
+Transport new producer: 3524bb2b-7ce2-45df-bd28-cef27890364f
+Transport new producer: b1c04f97-0853-4c98-b114-8782b0fba45a
+Transport new producer: ef0d3d14-7714-4364-acdd-843a5ce34bf1
+Transport new producer: 046b9940-e024-4bbc-9f0b-88b7a7b646de
+Transport new producer: 54e5a4d5-0d89-4a29-843c-05a5c801cd19
+Transport new producer: 32b58d25-d268-4aa5-bacc-1219ce67f2c8
+Transport new producer: 8b3e7e0e-b942-45aa-802b-fcf9db61bfd2
+Transport new producer: 2644cc8f-4352-4187-afc3-9a8e14036f3e
+Transport new producer: d3e5dfce-35d1-4ef9-ab3c-ac224dd60f04
+Transport new producer: 979286e2-39a5-42d3-8dd3-a12392fa7dc7
+Transport new producer: caeab081-38fd-4a7e-9f9d-5c6a928086b8
+Transport new producer: e97a536c-5149-4b07-bd97-8acd5ee9c9b6
+Transport new producer: 2446c65d-b8ee-4470-9773-f864eacba7e8
+Transport new producer: fcd40904-c364-49d4-a4ce-c2aad8a7054a
+Transport new producer: be05e062-894a-4352-a0f7-308480f77b1f
+Transport new producer: 29f0ca9c-777c-4fa6-a56b-29d2b808ac7f
+Transport new producer: fddce3d9-acbc-4efd-83f5-516c06ea403f
+Transport new producer: 75c4a38c-bb6c-4da6-98a7-48509e72b2b0
+Transport new producer: 4f88e732-a515-43bb-b40f-cc4859aeb00a
+Transport new producer: 83b99104-72af-4216-bb69-3b76d243478e
+Transport new producer: ee47659f-1a61-4248-aaf8-12eec3c3f411
+Transport new producer: e5e94288-09b1-4f56-a321-da674e92ed9d
+Transport new producer: 606974b5-7dff-48b4-a796-c7aa889f1f62
+Transport new producer: 809832de-4328-4b03-b570-a5ff942f30de
+Transport new producer: 84784bd2-a55f-4299-a778-8d432a81ab96
+Transport new producer: 50303d33-1eae-4b73-923c-1be90115f134
+Transport new producer: 74d3ec2c-8bf4-4356-9138-e308ae4368b4
+Transport new producer: e799fc87-228f-49e5-a491-6c49ff7fe896
+Transport new producer: a4176116-7e7f-4dae-8d1e-14e3176bcbb0
+Transport new producer: e3da48e3-e0e7-4213-bc98-82b8a7658e7e
+Transport new producer: 3019e019-8312-45f3-9e38-48c0d201967d
+Transport new producer: d0844d66-30f8-4bb6-9c32-1f779f3a3bc7
+Transport new producer: 62d245f4-06cd-411a-8e2a-50076ffcf14a
+Transport new producer: 82ef14e7-b7c1-460a-835b-db20585043a7
+Transport new producer: bfb2213d-b659-430b-b550-0b48d864a418
+Transport new producer: 42289fe9-d4d6-4f93-b798-de3b1849d3ad
+Transport new producer: 9eb8d8b0-6d86-49d7-85af-2b88ff0f16b2
+Transport new producer: fd36ae7c-1261-4c87-bc9d-25a84bd8acfd
+Transport new producer: c7e639d8-a608-4079-8927-6e73b0a07ed4
+Transport new producer: 24fc7eee-d54d-4ccd-a0ae-8c91b684e576
+Transport new producer: fb2823b9-1194-4dc0-ab4d-0940cd495521
+Transport new producer: a2078179-bf1f-4f60-817a-e576f697d349
+Transport new producer: bd3c3a35-e6e4-4096-8c40-c6537edbfcb0
+Transport new producer: cb7edb88-871f-4f96-b9e1-47c4d80ad834
+Transport new producer: c2b7a473-a58d-4ac1-82ee-bab437b40361
+Transport new producer: 1e176566-68fa-434c-a26f-5f21efdb98d5
+Transport new producer: 83aff4d3-c583-4c19-bab0-9ddb04c29ccc
+Transport new producer: 66b99a4a-84bb-4f97-9fe5-f3d571b14318
+Transport new producer: 41fa9910-a5c3-469c-b163-80a3820779a2
+Transport new producer: e47d1901-458e-4af7-8b24-ca37dbd572fd
+Transport new producer: 2686594a-66e3-4c86-9d92-b6f0953da252
+Transport new producer: 89044d62-1e70-4175-bc25-aa3f1615c5a6
+Transport new producer: 69607d8e-f78a-41b9-963b-4978f079d275
+Transport new producer: 33ab2d7f-03e7-4cf4-b525-d962f5612be8
+Transport new producer: 74d95761-98d5-4ee3-a61a-07153f062ae1
+Transport new producer: ce4405cd-f147-4798-8bf6-b0a4e96c15c9
+Transport new producer: de38c472-0a77-4ec7-a30d-d487411482dd
+Transport new producer: 8d2eadd1-9b06-4a8d-97fe-c76aa7affdc0
+Transport new producer: ce154bf1-4a9e-40fe-ae82-d8f43d676097
+Transport new producer: 800e855b-d0a3-42be-afb0-b04d2505e67f
+Transport new producer: e3526be4-d069-4c9f-8001-fe8212ecae96
+Transport new producer: 3c839e03-1140-426f-97ea-70356985e984
+Transport new producer: 65fbdd9e-f6d9-445d-a2ba-7b9d4f8d82c5
+Transport new producer: 1086233f-7e52-47cd-b1aa-d2bd1aaffcc9
+Transport new producer: 96410b28-cb97-46e7-a177-caf8fe7d8600
+Transport new producer: eb7af8b6-bcea-45ce-a53a-66912f1bf305
+Transport new producer: dd99d31a-a7b2-4dd1-bbb3-bf536819e57d
+Transport new producer: bdcdf273-d6c7-4d28-937e-3126faaa8f17
+Transport new producer: 404db038-cf94-4354-abd7-58353f90365b
+Transport new producer: fcc7ac13-8659-48a4-95ee-c6f3d6d28b08
+Transport new producer: 252627a0-d632-4e09-b757-dd4c056bfcd0
+Transport new producer: 9d76dace-c48e-4b96-9329-bf4bf645a5fd
+Transport new producer: c42c1b14-02cb-45fb-bf72-6bc5b9ffa27f
+Transport new producer: 9245c7d5-37eb-4056-bd4d-0c67d8c188f8
+Transport new producer: bacfc602-6ca3-4239-a413-ba20d3c229b8
+Transport new producer: aee12457-be48-435b-87bc-47d1e28cb73d
+Transport new producer: 088827c9-c33c-426d-aec4-6421b3be39d3
+[Heartbeat Timeout] Disconnecting zombie client: guest_2bw6dss4v (Gzsj0n_YbBqbQb4cAAAG)
+Client disconnected: Gzsj0n_YbBqbQb4cAAAG
+[Transport 8772fc2f-31dd-4e60-a2c5-78d1ce30a8ea] ICE State: disconnected

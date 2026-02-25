@@ -59,6 +59,9 @@ app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 from backend.routes import notifications
 app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 
+from backend.routes import search
+app.include_router(search.router, prefix="/search", tags=["Search"])
+
 from backend.routes import privacy
 app.include_router(privacy.router, prefix="/privacy", tags=["Privacy"])
 

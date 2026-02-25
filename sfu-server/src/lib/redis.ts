@@ -9,6 +9,7 @@ export interface SignalingAdapter {
     publishRoomEvent(meetingId: string, type: string, payload: any): Promise<void>;
     subscribeToRoom(meetingId: string, callback: (message: any) => void): Promise<void>;
     unsubscribeFromRoom(meetingId: string): Promise<void>;
+    updateParticipantHeartbeat(meetingId: string, participantId: string, timestamp: number): Promise<void>;
 }
 
 // 1. Real Redis Implementation
@@ -66,6 +67,16 @@ class RedisSignalingAdapter implements SignalingAdapter {
         const channel = `${this.channelPrefix}${meetingId}`;
         await this.sub.unsubscribe(channel);
     }
+
+    async updateParticipantHeartbeat(meetingId: string, participantId: string, timestamp: number) {
+        const key = `${this.keyPrefix}${meetingId}:participants`;
+        const dataStr = await this.cmd.hget(key, participantId);
+        if (dataStr) {
+            const data = JSON.parse(dataStr);
+            data.lastSeen = timestamp;
+            await this.cmd.hset(key, participantId, JSON.stringify(data));
+        }
+    }
 }
 
 // 2. In-Memory Mock Implementation (Fallback)
@@ -108,6 +119,14 @@ class InMemorySignalingAdapter implements SignalingAdapter {
     
     async unsubscribeFromRoom(meetingId: string) {
         this.emitter.removeAllListeners(`room:${meetingId}`);
+    }
+
+    async updateParticipantHeartbeat(meetingId: string, participantId: string, timestamp: number) {
+        const map = this.participants.get(meetingId);
+        if (map && map.has(participantId)) {
+            const participant = map.get(participantId);
+            participant.lastSeen = timestamp;
+        }
     }
 }
 

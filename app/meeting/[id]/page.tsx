@@ -1,5 +1,6 @@
 "use client";
 
+import { useSFU } from "@/hooks/useSFU";
 import { Button } from "@/components/ui/button";
 import { Mic, Video, PhoneOff, Settings, MessageSquare, Users, Share, Volume2, MonitorUp, MoreHorizontal, Shield, Camera, Filter, X, MicOff, Hand, Smile, LayoutDashboard, Paperclip, Image as ImageIcon, SendHorizontal, Bold, Italic, Underline, Search, Link as LinkIcon, Mail, Grid, User, Users2, Maximize, EyeOff, Monitor, Disc, Captions, HelpCircle, Activity, Zap, ArrowLeft, Layout, MoveVertical, Wifi, VideoOff, AppWindow, Presentation, FileText, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Calendar, Info, Copy, Check, Plus, Keyboard, LogOut, DoorOpen, Lock } from "lucide-react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -35,6 +36,17 @@ import { ParticipantPresence } from "@/lib/gridLayout";
 import { ReactionPicker } from "@/components/meeting/ReactionPicker";
 import { FloatingReaction } from "@/components/meeting/FloatingReaction";
 import "./reactions.css";
+import { EnterpriseMoreMenu } from "@/components/meetings/EnterpriseMoreMenu";
+import { EnterpriseViewMenu, ViewModeType } from "@/components/meetings/EnterpriseViewMenu";
+import { NetworkOverlay } from "@/components/meetings/NetworkOverlay";
+import { Whiteboard } from "@/components/meetings/Whiteboard";
+import { useBackgroundFilter } from "@/hooks/useBackgroundFilter";
+import { BackgroundFilterPanel } from "@/components/lobby/BackgroundFilterPanel";
+import type { BgConfig } from "@/hooks/useBackgroundFilter";
+import { useLiveCaption } from "@/hooks/useLiveCaption";
+import { LiveCaptionOverlay } from "@/components/meeting/LiveCaptionOverlay";
+import { CaptionSettingsPanel } from "@/components/meeting/CaptionSettingsPanel";
+import type { FontSize } from "@/components/meeting/CaptionSettingsPanel";
 
 // Presence type definition
 // Presence type definition - Now imported from lib/gridLayout as GridParticipantPresence
@@ -95,57 +107,80 @@ export default function MeetingPage() {
         setVideoPosition({ x: window.innerWidth - 220, y: 20 });
     }, []);
 
-    // Media State
-    const [micOn, setMicOn] = useState(true);
-    const [videoOn, setVideoOn] = useState(true);
+    // Media State — initalize from lobby preferences (saved to sessionStorage before navigation)
+    const [micOn, setMicOn] = useState(() => {
+        if (typeof window === 'undefined') return true;
+        const v = sessionStorage.getItem('joinMicOn');
+        if (v !== null) { sessionStorage.removeItem('joinMicOn'); return v === '1'; }
+        return true;
+    });
+    const [videoOn, setVideoOn] = useState(() => {
+        if (typeof window === 'undefined') return true;
+        const v = sessionStorage.getItem('joinVideoOn');
+        if (v !== null) { sessionStorage.removeItem('joinVideoOn'); return v === '1'; }
+        return true;
+    });
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const toggleMic = () => {
-        const targetState = !micOn; // If currently ON, target is OFF (Mute = true) -> isMuted = true
-        // isMuted = !targetState
+    const toggleMic = async () => {
+        const targetState = !micOn;
 
+        // If turning ON and we've never produced a stream yet, produce first
+        if (targetState && !localWebcamStream) {
+            console.log('[SFU] No stream yet — producing before unmuting');
+            await sfuProduce('webcam');
+            // After produce, the one-shot effect will fire and mute video if needed.
+            // We still fall through to sfuToggleMic below.
+        }
+
+        sfuToggleMic(targetState);
+        setMicOn(targetState);
+
+        // Directly enable/disable audio tracks on the local stream
+        if (localWebcamStream) {
+            localWebcamStream.getAudioTracks().forEach(t => { t.enabled = targetState; });
+        }
+
+        // Update Backend State (for UI icons)
         if (socket && socket.readyState === WebSocket.OPEN && effectiveUserId) {
-            // Permission Check (Client-side fast fail)
-            const me = participants.find(p => p.id === effectiveUserId);
-            // If Trying to Unmute (targetState=true) AND Audio Locked AND I am not admin
-            const isLocked = meetingData?.settings?.audio_locked;
-            const isAdmin = me?.role === 'host' || me?.role === 'co-host';
-
-            if (targetState && isLocked && !isAdmin) {
-                toast.error("Audio is locked by the host.");
-                return;
-            }
-
             socket.send(JSON.stringify({
                 type: 'audio_control',
                 action: 'set_mute_state',
                 target_user_id: effectiveUserId,
-                requested_state: !targetState // requested_state is isMuted
+                requested_state: !targetState // isMuted
             }));
-        } else {
-            // Offline fallback or error
-            toast.error("Connection lost. Cannot toggle audio.");
         }
     };
-    const toggleVideo = () => {
+
+    const toggleVideo = async () => {
         const targetState = !videoOn;
-        const me = participants.find(p => p.id === effectiveUserId);
-        const isLocked = meetingData?.settings?.video_locked;
-        const isAdmin = me?.role === 'host' || me?.role === 'co-host';
 
-        // 1. Check Global Lock
-        if (targetState && isLocked && !isAdmin) {
-            toast.error("Camera is disabled by the host.");
-            return;
+        if (targetState) {
+            // Turning ON
+            if (!localWebcamStream) {
+                // No stream at all — produce it fresh
+                console.log('[SFU] No stream — producing webcam...');
+                await sfuProduce('webcam');
+                // After produce the one-shot will apply initial states,
+                // but since we are explicitly turning video on here we
+                // immediately enable video tracks.
+                // The await above means localWebcamStream may now be set.
+            } else {
+                // Stream exists but video track was disabled — re-enable
+                sfuToggleVideo(true);
+                localWebcamStream.getVideoTracks().forEach(t => { t.enabled = true; });
+            }
+        } else {
+            // Turning OFF — disable video track, keep stream alive for fast toggle
+            sfuToggleVideo(false);
+            if (localWebcamStream) {
+                localWebcamStream.getVideoTracks().forEach(t => { t.enabled = false; });
+            }
         }
 
-        // 2. Check Individual Permission
-        if (targetState && me && !me.permissions?.canShareVideo) {
-            toast.error("Your camera permission has been revoked.");
-            return;
-        }
+        setVideoOn(targetState);
 
-        // Enterprise: Request Change, do not just toggle
+        // Update Backend State (for UI icons)
         if (socket && socket.readyState === WebSocket.OPEN && effectiveUserId) {
             socket.send(JSON.stringify({
                 type: 'video_control',
@@ -153,14 +188,13 @@ export default function MeetingPage() {
                 target_user_id: effectiveUserId,
                 requested_state: targetState
             }));
-        } else {
-             toast.error("Connection lost. Cannot toggle video.");
         }
     };
 
     const [filterMode, setFilterMode] = useState<'none' | 'blur' | 'image'>('none');
     const [backgroundImage, setBackgroundImage] = useState<string>(BACKGROUND_OPTIONS[0].url);
     const [showBackgroundPanel, setShowBackgroundPanel] = useState(false);
+    const [bgConfig, setBgConfig] = useState<BgConfig>({ mode: 'none' });
     const [audioLevel, setAudioLevel] = useState(0); // 0-100
 
     // Device State
@@ -302,6 +336,7 @@ export default function MeetingPage() {
         status: 'In Meeting' | 'Invited' | 'Suggestion' | 'waiting';
         isMuted: boolean;
         isHandRaised?: boolean;
+        handRaisedState?: { is_raised: boolean; raised_at: string; sequence_number: number; } | null;
         isVideoOn?: boolean;
         avatarColor: string;
         jobTitle?: string;
@@ -311,12 +346,167 @@ export default function MeetingPage() {
 
     // Simplified Message type removed in favor of ChatMessage
 
+    // Device Management
+    const devices = useMediaDevices();
 
     const [participants, setParticipants] = useState<Participant[]>([]);
     
-    // Enterprise Video Presence State
+    // --- SFU Integration ---
+    const { connected: sfuConnected, produce: sfuProduce, stopProducing: sfuStopProducing, remoteTracks, localWebcamStream, localScreenStream, toggleMic: sfuToggleMic, toggleVideo: sfuToggleVideo, sfuSocket } = useSFU(meetingId, effectiveUserId, { 
+        skip: isInLobby || !meetingId || meetingId === 'new' || !effectiveUserId
+    });
+
+    // ── Background Filter hook ───────────────────────────────────────────────
+    // Initialized with the live SFU webcam stream (reactive state)
+    const bgFilter = useBackgroundFilter(localWebcamStream ?? null);
+
+    // Auto-apply saved bgConfig from sessionStorage when camera becomes available
+    useEffect(() => {
+        if (!localWebcamStream) return;
+        const saved = sessionStorage.getItem('bgConfig');
+        if (!saved) return;
+        try {
+            const cfg: BgConfig = JSON.parse(saved);
+            if (cfg.mode !== 'none') {
+                setBgConfig(cfg);
+                bgFilter.apply(cfg);
+            }
+        } catch {}
+        // Only auto-apply once on first stream availability
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [!!localWebcamStream]);
+
+    // When bgFilter produces output, replace the SFU video track so
+    // remote participants also see the filtered background
+    useEffect(() => {
+        if (!bgFilter.outputStream || !sfuSocket) return;
+        if (bgFilter.status !== 'active' && bgFilter.status !== 'fallback') return;
+        const newVideoTrack = bgFilter.outputStream.getVideoTracks()[0];
+        if (!newVideoTrack) return;
+        // replaceTrack via sfuSocket RTCRtpSender (if available from useSFU)
+        try {
+            (sfuSocket as any)?._webcamSender?.replaceTrack(newVideoTrack).catch(() => {});
+        } catch {}
+    }, [bgFilter.outputStream, bgFilter.status, sfuSocket]);
+
+    // Auto-start SFU Production when connected.
+    // ALWAYS produce regardless of initial mic/video state so that tracks
+    // exist and can be toggled freely. Initial mute/off state is applied
+    // by the one-shot effect below once the stream arrives.
+    useEffect(() => {
+        if (sfuConnected && effectiveUserId && !localWebcamStream) {
+            console.log('[SFU] Connected — producing webcam+mic stream...');
+            sfuProduce('webcam');
+        }
+    }, [sfuConnected, effectiveUserId, localWebcamStream]);
+
+    // One-shot: once localWebcamStream first arrives, apply the initial
+    // mic/video state from the lobby (persisted in sessionStorage).
+    const appliedInitialStateRef = useRef(false);
+    useEffect(() => {
+        if (!localWebcamStream || appliedInitialStateRef.current) return;
+        appliedInitialStateRef.current = true;
+
+        if (!micOn) {
+            sfuToggleMic(false);
+            localWebcamStream.getAudioTracks().forEach(t => { t.enabled = false; });
+        }
+
+        if (!videoOn) {
+            sfuToggleVideo(false);
+            localWebcamStream.getVideoTracks().forEach(t => { t.enabled = false; });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [localWebcamStream]);
+
+
+    // Lobby Local Preview Logic
+    useEffect(() => {
+        if (!isInLobby) return;
+
+        const startPreview = async () => {
+             if (videoOn) {
+                 try {
+                     const stream = await navigator.mediaDevices.getUserMedia({
+                         video: { deviceId: devices.selectedCamera ? { exact: devices.selectedCamera } : undefined },
+                         audio: false // Preview video only
+                     });
+                     if (videoRef.current) {
+                         videoRef.current.srcObject = stream;
+                     }
+                 } catch (err) {
+                     console.error("Failed to start preview:", err);
+                 }
+             } else {
+                 if (videoRef.current && videoRef.current.srcObject) {
+                     const stream = videoRef.current.srcObject as MediaStream;
+                     stream.getTracks().forEach(t => t.stop());
+                     videoRef.current.srcObject = null;
+                 }
+             }
+        };
+        startPreview();
+        
+        return () => {
+            // Cleanup preview when leaving lobby or unmounting
+            if (videoRef.current && videoRef.current.srcObject) {
+                 const stream = videoRef.current.srcObject as MediaStream;
+                 stream.getTracks().forEach(t => t.stop());
+                 videoRef.current.srcObject = null;
+            }
+        };
+    }, [isInLobby, videoOn, devices.selectedCamera]);
+    const videoStreams = useMemo(() => {
+        const streams = new Map<string, MediaStream>();
+        
+        // Add Local Webcam — use bg-filtered output when active, else raw
+        if (localWebcamStream && effectiveUserId) {
+            const filteredOutput = 
+                (bgFilter.status === 'active' || bgFilter.status === 'fallback') && bgFilter.outputStream
+                    ? bgFilter.outputStream
+                    : localWebcamStream;
+            streams.set(effectiveUserId, filteredOutput);
+        }
+
+        // Add Local Screen Share
+        if (localScreenStream && effectiveUserId) {
+            streams.set(`${effectiveUserId}-screen`, localScreenStream);
+        }
+
+        // Add Remote Streams
+        remoteTracks.forEach(rt => {
+            if (rt.producerPeerId && rt.producerPeerId !== 'unknown') {
+                 // Determine key based on source (screen shares get -screen suffix)
+                 // Note: we need to ensure appData.source is present.
+                 const isScreen = rt.appData?.source === 'screen';
+                 const key = isScreen ? `${rt.producerPeerId}-screen` : rt.producerPeerId;
+
+                // Check if we already have a stream for this user/key
+                let stream = streams.get(key);
+                if (!stream) {
+                    stream = new MediaStream();
+                    streams.set(key, stream);
+                }
+                
+                // Add track if not already present
+                if (!stream.getTracks().find(t => t.id === rt.track.id)) {
+                    stream.addTrack(rt.track);
+                }
+            }
+        });
+        
+        // DEBUG: Log stream mapping
+        if (remoteTracks.length > 0) {
+            console.log('[VideoStreams] Remote Tracks:', remoteTracks.map(t => ({ pid: t.producerId, peer: t.producerPeerId, kind: t.track.kind })));
+            console.log('[VideoStreams] Stream Keys:', Array.from(streams.keys()));
+        }
+
+        return streams;
+    }, [remoteTracks, localWebcamStream, localScreenStream, effectiveUserId]);
+    
+    // Legacy P2P State (Kept for interface compatibility but unused)
     const [presenceParticipants, setPresenceParticipants] = useState<ParticipantPresence[]>([]);
-    const [videoStreams, setVideoStreams] = useState<Map<string, MediaStream>>(new Map());
+    // const [videoStreams, setVideoStreams] = useState<Map<string, MediaStream>>(new Map()); // REPLACED BY SFU MEMO
     
     
     // Enterprise: Pin & Spotlight
@@ -337,8 +527,7 @@ export default function MeetingPage() {
         allowed_roles: ['host', 'co-host', 'participant']
     });
     
-    // Device Management
-    const devices = useMediaDevices();
+
 
     // Initialize local stream on join
     useEffect(() => {
@@ -364,54 +553,26 @@ export default function MeetingPage() {
 
     // Active Camera Stream Management
     useEffect(() => {
-        if (!videoOn || !devices.selectedCamera) {
-            if (userStream) {
-                userStream.getTracks().forEach(t => t.stop());
-                setUserStream(null);
-                // Clear from videoStreams
-                if (effectiveUserId) {
-                    setVideoStreams(prev => {
-                        const next = new Map(prev);
-                        next.delete(effectiveUserId);
-                        return next;
-                    });
-                }
-            }
-            return;
+        // Wait for SFU connection
+        if (!sfuConnected) return;
+
+        // If video is ON and we don't have a local stream yet, start producing
+        // Note: sfuProduce('webcam') handles getUserMedia
+        if (videoOn && !localWebcamStream) {
+            console.log("SFU Connected, starting webcam...");
+            sfuProduce('webcam').catch(err => {
+                console.error("Failed to produce webcam:", err);
+                toast.error("Failed to start camera");
+            });
         }
-
-        let mounted = true;
-
-        const startStream = async () => {
-            try {
-                const stream = await mediaStreamManager.getVideoPreview(devices.selectedCamera!);
-                if (!mounted) {
-                    stream.getTracks().forEach(t => t.stop());
-                    return;
-                }
-
-                setUserStream(stream);
-
-                // CRITICAL: Update videoStreams map for self-view
-                if (effectiveUserId) {
-                    setVideoStreams(prev => {
-                        const next = new Map(prev);
-                        next.set(effectiveUserId, stream);
-                        return next;
-                    });
-                }
-            } catch (err) {
-                console.error("Failed to start camera:", err);
-                toast.error("Failed to access camera");
-            }
-        };
-
-        startStream();
-
-        return () => {
-            mounted = false;
-        };
-    }, [videoOn, devices.selectedCamera, effectiveUserId]);
+    }, [sfuConnected, videoOn, localWebcamStream, sfuProduce]);
+    
+    // Original P2P Camera Logic (Removed)
+    /*
+    useEffect(() => {
+        if (!videoOn || !devices.selectedCamera) {
+            // ...
+    */
     
 
 
@@ -463,10 +624,23 @@ export default function MeetingPage() {
                         }
                     };
                 });
+                
+                // CRITICAL FIX: Preserve SELF if missing from backend (Race Condition Protection)
+                if (effectiveUserId && !isInLobby) {
+                    const meInIncoming = merged.find((p: any) => p.id === effectiveUserId);
+                    if (!meInIncoming) {
+                         const meInPrev = prevParticipants.find(p => p.id === effectiveUserId);
+                         if (meInPrev) {
+                             console.log('[Sync] Preserving local user in participants list despite missing in backend data');
+                             merged.push(meInPrev);
+                         }
+                    }
+                }
+
                 return merged;
             });
         }
-    }, [meetingData, user]);
+    }, [meetingData, user, effectiveUserId, isInLobby]);
 
     // Derived Presence State for Grid (Full List)
     const gridParticipants = useMemo(() => {
@@ -494,33 +668,92 @@ export default function MeetingPage() {
         if (!lastMessage) return;
 
         if (lastMessage.type === 'user_joined') {
-            console.log("User Joined Event:", lastMessage);
+            const newUser = {
+                user_id: lastMessage.user_id,
+                name: lastMessage.name || "Guest",
+                joined_at: lastMessage.timestamp
+            };
+            console.log("User Joined Event:", newUser);
+
+            // 1. Update SWR Cache
             mutateMeeting((prev: any) => {
                 if (!prev) return prev;
-                // Check if already exists to avoid dupes
-                if (prev.participants.some((p: any) => p.user_id === lastMessage.user_id)) {
-                    return prev;
-                }
+                if (prev.participants.some((p: any) => p.user_id === newUser.user_id)) return prev;
                 return {
                     ...prev,
-                    participants: [...prev.participants, {
-                        user_id: lastMessage.user_id,
-                        name: lastMessage.name || "Guest", // Use name from backend
-                        joined_at: lastMessage.timestamp
-                    }]
+                    participants: [...prev.participants, newUser]
                 };
-            }, false); // Update SWR cache without revalidation
+            }, false);
+
+            // 2. Explicitly Update Local Participants State (Immediate UI Update)
+            setParticipants(prev => {
+                if (prev.some(p => p.id === newUser.user_id)) return prev;
+                return [...prev, {
+                    id: newUser.user_id,
+                    name: newUser.name,
+                    role: 'guest', // Default, will be updated by user_update if different
+                    status: 'In Meeting',
+                    isMuted: true,
+                    isVideoOn: false,
+                    isHandRaised: false,
+                    avatarColor: 'bg-indigo-500',
+                    permissions: {
+                         canUnmute: true, canShareVideo: true, canShareScreen: true, canChat: true, canUseReactions: true
+                    }
+                } as Participant];
+            });
+
+            // 3. Add System Chat Message
+            setMessages(prev => [...prev, {
+                id: `sys-${Date.now()}-${Math.random()}`,
+                meeting_id: meetingId,
+                sender_id: 'system',
+                sender_name: 'System',
+                sender_role: 'system',
+                timestamp: new Date().toISOString(),
+                content: { type: 'text', body: `${newUser.name} joined the meeting` },
+                scope: 'public',
+                reactions: [],
+                is_deleted: false,
+                type: 'system'
+            } as ChatMessage]);
         }
 
         if (lastMessage.type === 'user_left') {
             console.log("User Left Event:", lastMessage);
+            const leftUserId = lastMessage.user_id;
+
+            // 1. Update SWR Cache
             mutateMeeting((prev: any) => {
                 if (!prev) return prev;
                 return {
                     ...prev,
-                    participants: prev.participants.filter((p: any) => p.user_id !== lastMessage.user_id)
+                    participants: prev.participants.filter((p: any) => p.user_id !== leftUserId)
                 };
             }, false);
+            
+            // 2. Explicitly Update Local Participants State
+            let leftUserName = 'A participant';
+            setParticipants(prev => {
+                const user = prev.find(p => p.id === leftUserId);
+                if (user) leftUserName = user.name;
+                return prev.filter(p => p.id !== leftUserId);
+            });
+
+            // 3. Add System Chat Message
+            setMessages(prev => [...prev, {
+                id: `sys-${Date.now()}-${Math.random()}`,
+                meeting_id: meetingId,
+                sender_id: 'system',
+                sender_name: 'System',
+                sender_role: 'system',
+                timestamp: new Date().toISOString(),
+                content: { type: 'text', body: `${leftUserName} left the meeting` },
+                scope: 'public',
+                reactions: [],
+                is_deleted: false,
+                type: 'system'
+            } as ChatMessage]);
         }
 
         if (lastMessage.type === 'meeting_ended') {
@@ -563,62 +796,15 @@ export default function MeetingPage() {
                 return [...prev, joinedUser];
             });
             
-            // ====== CRITICAL: Create WebRTC Peer Connection for Video/Audio ======
-            // When a new participant joins, establish P2P connection for their camera/mic
+            
+            // ====== SFU ARCHITECTURE: P2P Logic Removed ======
+            // New participant joined. SFU handles media subscription via 'newProducer' event in useSFU hook.
+            // No P2P initiation needed.
+            /*
             if (joinedUser.user_id !== effectiveUserId && effectiveUserId) {
-                console.log('[WebRTC] New participant joined:', joinedUser.user_id);
-                
-                // Initialize peer manager if needed
-                if (!peerManagerRef.current) {
-                    peerManagerRef.current = new PeerConnectionManager();
-                }
-                
-                // Check if peer already exists to avoid duplicates
-                const existingPeer = peerManagerRef.current.getPeer(joinedUser.user_id);
-                if (existingPeer) {
-                    console.log('[WebRTC] Peer connection already exists for', joinedUser.user_id, 'skipping creation');
-                    return;
-                }
-                
-                // Use tie-breaker: only the user with the lower ID initiates
-                const shouldInitiate = effectiveUserId < joinedUser.user_id;
-                
-                if (shouldInitiate) {
-                    console.log('[WebRTC] Creating initiator peer connection');
-                    
-                    peerManagerRef.current.createPeer({
-                        userId: joinedUser.user_id,
-                        initiator: true,
-                        stream: userStream || undefined,
-                        onSignal: (signal) => {
-                            if (socket && socket.readyState === WebSocket.OPEN) {
-                                socket.send(JSON.stringify({
-                                    type: 'webrtc_signal',
-                                    to_user_id: joinedUser.user_id,
-                                    from_user_id: effectiveUserId,
-                                    signal: signal
-                                }));
-                            }
-                        },
-                        onStream: (remoteStream) => {
-                            console.log('[WebRTC] Received camera stream from:', joinedUser.user_id);
-                            setVideoStreams(prev => {
-                                const next = new Map(prev);
-                                next.set(joinedUser.user_id, remoteStream);
-                                return next;
-                            });
-                        },
-                        onError: (err) => {
-                            console.error('[WebRTC] Peer connection error:', err);
-                        },
-                        onClose: () => {
-                            console.log('[WebRTC] Peer connection closed:', joinedUser.user_id);
-                        }
-                    });
-                } else {
-                    console.log('[WebRTC] I am responder (higher ID), waiting for signal from', joinedUser.user_id);
-                }
+                 // ... P2P Logic Removed ...
             }
+            */
         }
         
         // Initial participant list (for late joiners)
@@ -634,65 +820,13 @@ export default function MeetingPage() {
                 return [...prev, ...newParticipants];
             });
             
-            // ====== CRITICAL: Create WebRTC Connections for Existing Participants ======
-            // Late joiner needs to connect to all existing participants
+            // ====== SFU ARCHITECTURE: P2P Logic Removed for Late Joiners ======
+            // Logic handled by useSFU 'getProducers'
+            /*
             if (effectiveUserId) {
-                console.log('[WebRTC] Late joiner: Creating connections to existing participants');
-                
-                // Initialize peer manager if needed
-                if (!peerManagerRef.current) {
-                    peerManagerRef.current = new PeerConnectionManager();
-                }
-                
-                existingParticipants.forEach((participant: ParticipantPresence) => {
-                    if (participant.user_id !== effectiveUserId) {
-                        // Check if peer already exists to avoid duplicates
-                        const existingPeer = peerManagerRef.current!.getPeer(participant.user_id);
-                        if (existingPeer) {
-                            console.log('[WebRTC] Peer connection already exists for', participant.user_id, 'skipping');
-                            return;
-                        }
-                        
-                        const shouldInitiate = effectiveUserId < participant.user_id;
-                        
-                        if (shouldInitiate) {
-                            console.log('[WebRTC] Creating connection as initiator to:', participant.user_id);
-                            
-                            peerManagerRef.current!.createPeer({
-                                userId: participant.user_id,
-                                initiator: true,
-                                stream: userStream || undefined,
-                                onSignal: (signal) => {
-                                    if (socket && socket.readyState === WebSocket.OPEN) {
-                                        socket.send(JSON.stringify({
-                                            type: 'webrtc_signal',
-                                            to_user_id: participant.user_id,
-                                            from_user_id: effectiveUserId,
-                                            signal: signal
-                                        }));
-                                    }
-                                },
-                                onStream: (remoteStream) => {
-                                    console.log('[WebRTC] Received camera stream from:', participant.user_id);
-                                    setVideoStreams(prev => {
-                                        const next = new Map(prev);
-                                        next.set(participant.user_id, remoteStream);
-                                        return next;
-                                    });
-                                },
-                                onError: (err) => {
-                                    console.error('[WebRTC] Peer connection error:', err);
-                                },
-                                onClose: () => {
-                                    console.log('[WebRTC] Peer connection closed:', participant.user_id);
-                                }
-                            });
-                        } else {
-                            console.log('[WebRTC] Waiting for signal from', participant.user_id);
-                        }
-                    }
-                });
+                 // ... P2P Logic Removed ...
             }
+            */
         }
         
         // Participant presence update (camera/mic/speaking)
@@ -710,12 +844,36 @@ export default function MeetingPage() {
             console.log('[Presence] Participant left:', lastMessage.user_id);
             setPresenceParticipants(prev => prev.filter(p => p.user_id !== lastMessage.user_id));
             // Clean up video stream
-            setVideoStreams(prev => {
-                const next = new Map(prev);
-                next.delete(lastMessage.user_id);
-                return next;
-            });
+
         }
+
+        // Specific Enterprise Media Handlers
+        if (lastMessage.type === 'participant_video_update') {
+             console.log('[Presence] Participant video update:', lastMessage.user_id, lastMessage.is_video_on);
+             setPresenceParticipants(prev => prev.map(p =>
+                 p.user_id === lastMessage.user_id
+                     ? { ...p, is_video_on: lastMessage.is_video_on }
+                     : p
+             ));
+        }
+
+        if (lastMessage.type === 'participant_audio_update') {
+             console.log('[Presence] Participant audio update:', lastMessage.user_id, lastMessage.isMuted);
+             setPresenceParticipants(prev => prev.map(p =>
+                 p.user_id === lastMessage.user_id
+                     ? { ...p, is_audio_on: !lastMessage.isMuted } // UI uses is_audio_on, Backend uses isMuted
+                     : p
+             ));
+        }
+
+        if (lastMessage.type === 'participant_audio_update_bulk') {
+              if (lastMessage.action === 'mute_all') {
+                  setPresenceParticipants(prev => prev.map(p => 
+                      p.user_id === lastMessage.except_user ? p : { ...p, is_audio_on: false }
+                  ));
+              }
+        }
+
 
         if (lastMessage.type === 'meeting_settings_updated' || lastMessage.type === 'meeting_settings_update') {
              const settings = lastMessage.settings || {};
@@ -784,6 +942,37 @@ export default function MeetingPage() {
             }
         }
         
+        // --- ENTERPRISE RAISE HAND EVENT HANDLERS ---
+        if (lastMessage.type === 'hand_update') {
+            const { user_id, hand_state } = lastMessage;
+            
+            setParticipants(prev => prev.map(p => 
+                p.id === user_id ? { ...p, isHandRaised: hand_state.is_raised, handRaisedState: hand_state } : p
+            ));
+
+            setPresenceParticipants(prev => prev.map(p => 
+                p.user_id === user_id ? { ...p, is_hand_raised: hand_state.is_raised, hand_raised: hand_state } : p
+            ));
+            
+            if (hand_state.is_raised) {
+                const user = participants.find(p => p.id === user_id);
+                if (user && user_id !== effectiveUserId) {
+                    toast(`${user.name} raised their hand`, { icon: '🖐' });
+                    // Optional: Play a tiny subtle sound if user is host
+                    // if (['host', 'co-host'].includes(participants.find(p => p.id === effectiveUserId)?.role)) {
+                    //     new Audio('/sounds/raise-hand.mp3').play().catch(e => {});
+                    // }
+                }
+            }
+        }
+
+        if (lastMessage.type === 'hand_update_bulk') {
+            if (lastMessage.action === 'lower_all') {
+                setParticipants(prev => prev.map(p => ({ ...p, isHandRaised: false, handRaisedState: null })));
+                setPresenceParticipants(prev => prev.map(p => ({ ...p, is_hand_raised: false, hand_raised: null })));
+                toast.info("Host lowered all hands.");
+            }
+        }
         if (lastMessage.type === 'participant_video_update_bulk' && lastMessage.action === 'stop_all_video') {
              const { except_user } = lastMessage;
              setParticipants(prev => prev.map(p => 
@@ -809,88 +998,19 @@ export default function MeetingPage() {
              // Hard Sync: If I am sharing locally, but server says someone else (or null) is active...
              // STOP MY TRACKS IMMEDIATELY.
              if (isScreenSharing && active_presenter_id !== effectiveUserId) {
-                 if (screenStream) {
-                     screenStream.getTracks().forEach(t => t.stop());
-                     setScreenStream(null);
-                 }
+                 sfuStopProducing('screen');
                  setIsScreenSharing(false);
                  setSharingMode('screen');
                  toast.info("Your screen share has been stopped.");
              }
         }
 
-        // WebRTC Signaling Handler
+        // WebRTC Signaling Handler (REMOVED - Replaced by SFU)
+        /*
         if (lastMessage.type === 'webrtc_signal') {
-            const { from_user_id, signal } = lastMessage;
-            
-            // Initialize peer manager if needed
-            if (!peerManagerRef.current) {
-                peerManagerRef.current = new PeerConnectionManager();
-            }
-
-            // Check if we already have a peer for this user
-            const existingPeer = peerManagerRef.current.getPeer(from_user_id);
-            
-            if (existingPeer) {
-                // We have an existing peer, just handle the signal
-                console.log('[WebRTC] Handling signal for existing peer:', from_user_id);
-                peerManagerRef.current.handleSignal(from_user_id, signal);
-            } else {
-                // No existing peer - need to create one
-                // Use tie-breaker: only respond if we have a lower user ID
-                // This prevents both sides from becoming initiators simultaneously
-                const shouldBeInitiator = effectiveUserId && effectiveUserId < from_user_id;
-                
-                if (signal.type === 'offer' || !shouldBeInitiator) {
-                    // Receive an offer OR we should be the responder (higher ID)
-                    console.log('[WebRTC] Creating peer as responder for:', from_user_id);
-                    
-                    peerManagerRef.current.createPeer({
-                        userId: from_user_id,
-                        initiator: false,
-                        stream: userStream || undefined, // Send our camera stream back
-                        onSignal: (responseSignal) => {
-                            // Send our signal back
-                            if (socket && socket.readyState === WebSocket.OPEN && effectiveUserId) {
-                                socket.send(JSON.stringify({
-                                    type: 'webrtc_signal',
-                                    to_user_id: from_user_id,
-                                    from_user_id: effectiveUserId,
-                                    signal: responseSignal
-                                }));
-                            }
-                        },
-                        onStream: (remoteStream) => {
-                            console.log('[WebRTC] Received camera stream from', from_user_id);
-                            // Add to video streams for camera feeds
-                            setVideoStreams(prev => {
-                                const next = new Map(prev);
-                                next.set(from_user_id, remoteStream);
-                                return next;
-                            });
-                        },
-                        onError: (err) => {
-                            console.error('[WebRTC] Peer error:', err);
-                        },
-                        onClose: () => {
-                            console.log('[WebRTC] Peer connection closed:', from_user_id);
-                            setVideoStreams(prev => {
-                                const next = new Map(prev);
-                                next.delete(from_user_id);
-                                return next;
-                            });
-                        }
-                    });
-                    
-                    // Now handle the signal
-                    peerManagerRef.current.handleSignal(from_user_id, signal);
-                } else {
-                    // We should be the initiator (lower ID), ignore this signal
-                    // Our outgoing connection should handle this
-                    console.log('[WebRTC] Ignoring signal (tie-breaker), we should initiate');
-                }
-            }
+             // ... P2P Logic Removed ...
         }
+        */
 
         // Late Joiner Support: Auto-connect to active presenter
         if (lastMessage.type === 'active_presenter_notification') {
@@ -904,49 +1024,8 @@ export default function MeetingPage() {
             
             if (active_presenter_id && active_presenter_id !== effectiveUserId) {
                 console.log('[Late Joiner] Notified of active presenter:', active_presenter_id);
-                
-                if (!peerManagerRef.current) {
-                    peerManagerRef.current = new PeerConnectionManager();
-                    console.log('[Late Joiner] Created new PeerConnectionManager');
-                }
-
-                // Check if we already have a peer connection with this presenter
-                const existingPeer = peerManagerRef.current.getPeer(active_presenter_id);
-                if (existingPeer) {
-                    console.log('[Late Joiner] Peer connection already exists, skipping');
-                    return;
-                }
-
-                console.log('[Late Joiner] Creating new peer connection as initiator');
-                peerManagerRef.current.createPeer({
-                    userId: active_presenter_id,
-                    initiator: true, // We initiate to request the stream
-                    onSignal: (signal) => {
-                        console.log('[Late Joiner] Sending WebRTC signal to presenter');
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                            socket.send(JSON.stringify({
-                                type: 'webrtc_signal',
-                                to_user_id: active_presenter_id,
-                                from_user_id: effectiveUserId,
-                                signal
-                            }));
-                        }
-                    },
-                    onStream: (remoteStream) => {
-                        console.log('[Late Joiner] ✅ Received screen stream from presenter');
-                        setRemoteScreenStream(remoteStream);
-                        // Also add to video streams for presence system
-                        setVideoStreams(prev => new Map(prev).set(active_presenter_id, remoteStream));
-                        toast.success('Connected to screen share');
-                    },
-                    onError: (err) => {
-                        console.error('[Late Joiner] Connection error:', err);
-                    },
-                    onClose: () => {
-                        console.log('[Late Joiner] Connection closed');
-                        setRemoteScreenStream(null);
-                    }
-                });
+                // SFU ARCHITECTURE: Late joiners automatically get remote streams via getProducers() 
+                // when initialising the SFU hook. P2P peerManagerRef logic removed.
             } else {
                 console.log('[Late Joiner] Skipping - same user or no presenter_id');
             }
@@ -1262,6 +1341,23 @@ export default function MeetingPage() {
                 return;
             }
 
+            // Enterprise Raise Hand Controls
+            if (action === 'lower_hand') {
+                socket.send(JSON.stringify({
+                    type: 'raise_hand',
+                    action: 'lower',
+                    target_user_id: targetId
+                }));
+                return;
+            }
+            if (action === 'lower_all_hands') {
+                socket.send(JSON.stringify({
+                    type: 'raise_hand',
+                    action: 'lower_all'
+                }));
+                return;
+            }
+
             // Legacy
             socket.send(JSON.stringify({
                 type: 'participant_action',
@@ -1298,15 +1394,45 @@ export default function MeetingPage() {
         }
     }, [participants, effectiveUserId, micOn, isInLobby]);
 
-    const filteredParticipants = participants.filter(p =>
+    const filteredParticipants = participants.filter((p: any) =>
         p.name.toLowerCase().includes(participantSearch.toLowerCase()) ||
         p.role.toLowerCase().includes(participantSearch.toLowerCase())
     );
 
-    const inMeeting = filteredParticipants.filter(p => p.status === 'In Meeting');
-    const waitingParticipants = filteredParticipants.filter(p => p.status === 'waiting');
-    const suggestions = filteredParticipants.filter(p => p.status !== 'In Meeting' && p.status !== 'waiting');
+    // Priority Queue Sorting for Enterprise Raise Hand
+    const inMeeting = filteredParticipants.filter(p => p.status === 'In Meeting').sort((a: any, b: any) => {
+        // 1. Roles override
+        const getRoleWeight = (role: string) => {
+            if (role === 'host') return 3;
+            if (role === 'co-host') return 2;
+            if (role === 'presenter') return 1;
+            return 0;
+        };
+        const weightA = getRoleWeight(a.role);
+        const weightB = getRoleWeight(b.role);
+        
+        if (weightA !== weightB) {
+            return weightB - weightA;
+        }
 
+        // 2. Raise Hand Sort with Sequence Number
+        if (a.isHandRaised && !b.isHandRaised) return -1;
+        if (!a.isHandRaised && b.isHandRaised) return 1;
+        
+        if (a.isHandRaised && b.isHandRaised) {
+            // Check sequence numbers if available
+            const seqA = a.handRaisedState?.sequence_number || Number.MAX_SAFE_INTEGER;
+            const seqB = b.handRaisedState?.sequence_number || Number.MAX_SAFE_INTEGER;
+            return seqA - seqB;
+        }
+
+        // 3. Alphabetical fallback
+        return a.name.localeCompare(b.name);
+    });
+
+    const waitingParticipants = filteredParticipants.filter((p: any) => p.status === 'waiting');
+    const suggestions = filteredParticipants.filter((p: any) => p.status !== 'In Meeting' && p.status !== 'waiting');
+    
     // --- Chat Integration ---
     const { data: chatHistory, mutate: mutateChat } = useSWR(
         meetingData?.id ? `/meetings/${meetingData.id}/chat` : null, 
@@ -1392,8 +1518,10 @@ export default function MeetingPage() {
     const [isHandRaised, setIsHandRaised] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(true);
 
-    const [viewMode, setViewMode] = useState<'speaker' | 'gallery' | 'together'>('speaker');
-    const [showViewMenu, setShowViewMenu] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewModeType>('speaker');
+    const [isLayoutLocked, setIsLayoutLocked] = useState(false);
+    const [maxGallerySize, setMaxGallerySize] = useState<number>(25);
+    const [showDiagnosticsOverlay, setShowDiagnosticsOverlay] = useState(false);
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [hideMe, setHideMe] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1441,72 +1569,67 @@ export default function MeetingPage() {
     // Derived isSharing for UI View:
     const isSharing = !!activePresenterId;
 
-    // Video Streams State
-    const [userStream, setUserStream] = useState<MediaStream | null>(null);
-    const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
-
+    // Video Streams State (Managed by useSFU / videoStreams map)
+    // const [screenStream, setScreenStream] = useState<MediaStream | null>(null); // Replaced by localScreenStream
+    
     const screenRef = useRef<HTMLVideoElement>(null);
     const [sharingMode, setSharingMode] = useState<'screen' | 'whiteboard'>('screen');
 
-    // WebRTC State for Remote Screen Sharing
-    const peerManagerRef = useRef<PeerConnectionManager | null>(null);
-    const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
+    // WebRTC State for Remote Screen Sharing (REMOVED)
+    // const peerManagerRef = useRef<PeerConnectionManager | null>(null); 
+    // const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
     const remoteScreenRef = useRef<HTMLVideoElement>(null);
     
-    
     // Stream Update Propagation (Fixed Placement)
-    // Ref to track the previous stream to correctly remove it when updating
     const prevUserStreamRef = useRef<MediaStream | null>(null);
 
-    useEffect(() => {
-        if (!peerManagerRef.current) return;
-        
-        const currentStream = userStream;
-        const prevStream = prevUserStreamRef.current;
-
-        if (currentStream === prevStream) return;
-
-        console.log('[WebRTC] Local stream changed, updating peers');
-        
-        // Update all existing peers with the new stream
-        peerManagerRef.current.getPeerIds().forEach(peerId => {
-            console.log(`[WebRTC] Updating stream for peer ${peerId}`);
-            if (currentStream) {
-                peerManagerRef.current!.replaceStream(peerId, prevStream, currentStream);
-            } else if (prevStream) {
-                peerManagerRef.current!.removeStream(peerId, prevStream);
-            }
-        });
-        
-        // Update ref
-        prevUserStreamRef.current = currentStream;
-    }, [userStream]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-             if (peerManagerRef.current) {
-                peerManagerRef.current.destroyAll();
-                peerManagerRef.current = null;
-            }
-        };
-    }, []);
-
+    // P2P Logic Removed (peerManagerRef updates)
+    /* 
+    useEffect(() => { ... }, [userStream]);
+    useEffect(() => { ... }, []);
+    */ 
+    
     // Enterprise Features: Speaking Detection
     const speakingDetectorRef = useRef<SpeakingDetector | null>(null);
 
     // Enterprise Features: Recording & Quality
     const screenRecorderRef = useRef<ScreenRecorder | null>(null);
-    const [isRecordingScreen, setIsRecordingScreen] = useState(false);
-    const [recordingDuration, setRecordingDuration] = useState(0);
     const [qualityPreset, setQualityPreset] = useState<QualityPreset>(QualityPreset.AUTO);
     const [bandwidthQuality, setBandwidthQuality] = useState<'high' | 'medium' | 'low'>('high');
 
     // "More" Menu State
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
+    const [isMeetingBeingRecorded, setIsMeetingBeingRecorded] = useState(false); // Global indicator
     const [areCaptionsOn, setAreCaptionsOn] = useState(false);
+    const [showCaptionPanel, setShowCaptionPanel] = useState(false);
+    const [captionFontSize, setCaptionFontSize] = useState<FontSize>('md');
+    const [captionBgOpacity, setCaptionBgOpacity] = useState(70);
+
+    // ── Live Caption hook ──────────────────────────────────────────────
+    const liveCaption = useLiveCaption({
+        enabled: areCaptionsOn && !isInLobby,
+        userId: effectiveUserId || 'guest',
+        userName: user?.full_name || 'You',
+        socket: socket,
+        lastMessage,
+    });
+
     const [showLeaveMenu, setShowLeaveMenu] = useState(false);
+
+    // Listen for global recording status
+    useEffect(() => {
+        if (!sfuSocket) return;
+
+        const handleRecordingStatus = (payload: { isRecording: boolean, userId: string }) => {
+            setIsMeetingBeingRecorded(payload.isRecording);
+        };
+        
+        sfuSocket.on('recording:status', handleRecordingStatus);
+        return () => {
+            sfuSocket.off('recording:status', handleRecordingStatus);
+        };
+    }, [sfuSocket]);
 
     // Enterprise Features State
     const [showMeetingInfo, setShowMeetingInfo] = useState(false);
@@ -1572,20 +1695,15 @@ export default function MeetingPage() {
             return;
         }
 
-        setIsHandRaised(prev => !prev);
-        // Update my status in participants list
-        setParticipants(prev => prev.map(p =>
-            p.id === '1' ? { ...p, isHandRaised: !isHandRaised } : p
-        ));
+        const newRaiseState = !isHandRaised;
+        setIsHandRaised(newRaiseState);
 
-        // Broadcast hand raise if socket is open (Assuming backend supports generic updates or relies on user_update of isHandRaised?)
-        // The original code was updating local state and sending system message locally?
-        // Let's assume user_update handles it.
+        // Broadcast enterprise hand raise event
         if (socket && socket.readyState === WebSocket.OPEN && effectiveUserId) {
             socket.send(JSON.stringify({
-                type: 'user_update',
-                user_id: effectiveUserId,
-                data: { isHandRaised: !isHandRaised }
+                type: 'raise_hand',
+                action: newRaiseState ? 'raise' : 'lower',
+                target_user_id: effectiveUserId
             }));
         }
 
@@ -1611,129 +1729,33 @@ export default function MeetingPage() {
     };
 
     const toggleScreenShare = async () => {
-        // Case 1: Stop Sharing
         if (isScreenSharing) {
-            stopScreenShare();
-            return;
-        }
-
-        // Case 2: Start Sharing
-        const me = participants.find(p => p.id === effectiveUserId);
-        const isLocked = meetingData?.settings?.screen_share_locked;
-        const isAdmin = me?.role === 'host' || me?.role === 'co-host';
-
-        // Check Lock
-        if (isLocked && !isAdmin) {
-             toast.error("Screen sharing is locked by the host.");
-             return;
-        }
-
-        // Check Active Presenter
-        if (activePresenterId && activePresenterId !== effectiveUserId) {
-             // If Admin, confirm takeover?
-             if (!isAdmin) {
-                 toast.error("Someone is already sharing.");
-                 return;
-             } else {
-                 if (!confirm("Start sharing? This will stop the current presentation.")) return;
-             }
-        }
-
-        try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            setScreenStream(stream);
-            setIsScreenSharing(true);
-            setSharingMode('screen');
-            setShowShareMenu(false);
-
-            // Handle Native Stop
-            stream.getVideoTracks()[0].onended = () => {
-                stopScreenShare();
-            };
-
-            // Notify Backend
-            if (socket && socket.readyState === WebSocket.OPEN && effectiveUserId) {
-                socket.send(JSON.stringify({
-                    type: 'screen_share',
-                    action: 'start_share',
-                    target_user_id: effectiveUserId
-                }));
+            await stopScreenShare();
+        } else {
+            try {
+                // SFU Produce Screen - this handles getDisplayMedia internally
+                await sfuProduce('screen');
+                
+                setIsScreenSharing(true);
+                setSharingMode('screen'); // Ensure mode is set
+                toast.success("Started screen share");
+                
+                // Note: We rely on localScreenStream updates in useMemo to handle the stream rendering
+                
+            } catch (err) {
+                console.error("Screen Share Error:", err);
+                toast.error("Failed to share screen");
             }
-            
-            // Initialize peer manager if needed
-            if (!peerManagerRef.current) {
-                peerManagerRef.current = new PeerConnectionManager();
-            }
-
-            // Create peer connections to all other participants and share screen
-            participants.forEach(participant => {
-                if (participant.id !== effectiveUserId && participant.user_id) {
-                    // Check if peer already exists (prevents duplicate creation)
-                    const existingPeer = peerManagerRef.current!.getPeer(participant.user_id);
-                    if (existingPeer) {
-                        console.log(`[WebRTC] Peer already exists for ${participant.name}, adding stream`);
-                        peerManagerRef.current!.addStream(participant.user_id, stream);
-                        return;
-                    }
-                    
-                    console.log(`[WebRTC] Creating peer connection to ${participant.name}`);
-                    
-                    peerManagerRef.current!.createPeer({
-                        userId: participant.user_id,
-                        initiator: true, // We are starting the share, so we initiate
-                        stream,
-                        onSignal: (signal) => {
-                            // Send WebRTC signal to this participant
-                            if (socket && socket.readyState === WebSocket.OPEN) {
-                                socket.send(JSON.stringify({
-                                    type: 'webrtc_signal',
-                                    to_user_id: participant.user_id,
-                                    from_user_id: effectiveUserId,
-                                    signal
-                                }));
-                            }
-                        },
-                        onStream: () => {
-                            // We don't expect to receive a stream since we're sharing
-                        },
-                        onError: (err) => {
-                            console.error(`[WebRTC] Error with peer ${participant.name}:`, err);
-                        },
-                        onClose: () => {
-                            console.log(`[WebRTC] Connection closed with ${participant.name}`);
-                        }
-                    });
-                }
-            });
-            
-            // User Guidance
-            toast.success("Started screen share");
-            
-            // Check if potentially sharing the same tab (heuristic: if stream has very similar dimensions to window)
-            const videoTrack = stream.getVideoTracks()[0];
-            const settings = videoTrack.getSettings();
-            if (settings.displaySurface === 'browser') {
-                toast.info("💡 Tip: Share your screen or a different window to avoid the mirror effect", { duration: 5000 });
-            }
-
-        } catch (err) {
-            console.error("Screen Share Error:", err);
         }
     };
 
-    const stopScreenShare = () => {
-        if (screenStream) {
-            screenStream.getTracks().forEach(track => track.stop());
-            setScreenStream(null);
-        }
+    const stopScreenShare = async () => {
+        await sfuStopProducing('screen');
         setIsScreenSharing(false);
-        setSharingMode('screen');
+        // setSharingMode('screen'); // Might want to reset or keep depending on UI logic, assuming kept for now but check
         
-        // Destroy all peer connections
-        if (peerManagerRef.current) {
-            peerManagerRef.current.destroyAll();
-        }
-        
+        // Notify others via socket strictly for UI/State synchronization if needed
+        // But SFU handles the stream removal.
         if (socket && socket.readyState === WebSocket.OPEN && effectiveUserId) {
              socket.send(JSON.stringify({
                  type: 'screen_share',
@@ -1743,32 +1765,31 @@ export default function MeetingPage() {
         }
     };
 
-    // Toggle Screen Recording
-    const toggleScreenRecording = async () => {
-        if (!screenStream) {
-            toast.error('Start screen share first before recording');
-            return;
-        }
-
-        if (isRecordingScreen) {
+    // Toggle Meeting Recording
+    const toggleMeetingRecording = async () => {
+        if (isRecording) {
             // Stop recording
             if (screenRecorderRef.current) {
                 try {
                     const blob = await screenRecorderRef.current.stop();
-                    setIsRecordingScreen(false);
-                    setRecordingDuration(0);
+                    setIsRecording(false);
                     
-                    // Option 1: Download locally
+                    if (sfuSocket) {
+                        sfuSocket.emit('recording:status', { isRecording: false, userId: effectiveUserId });
+                    }
+                    setIsMeetingBeingRecorded(false);
+                    
+                    // Download locally
                     const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
-                    screenRecorderRef.current.downloadRecording(blob, `screen-recording-${timestamp}.webm`);
+                    screenRecorderRef.current.downloadRecording(blob, `meeting-recording-${timestamp}.webm`);
                     
-                    // Option 2: Upload to server (uncomment to enable)
-                    // if (effectiveUserId) {
-                    //     await screenRecorderRef.current.uploadRecording(blob, id as string, effectiveUserId);
-                    //     toast.success('Recording uploaded successfully');
-                    // }
+                    toast.success('Recording saved safely to your device!');
                     
-                    toast.success('Recording saved!');
+                    // Stop tracks used for recording capturing
+                    if (screenRecorderRef.current['stream']) {
+                        const recStream = screenRecorderRef.current['stream'] as MediaStream;
+                        recStream.getTracks().forEach(t => t.stop());
+                    }
                 } catch (error) {
                     console.error('[Recording] Failed to stop:', error);
                     toast.error('Failed to save recording');
@@ -1776,30 +1797,43 @@ export default function MeetingPage() {
             }
         } else {
             // Start recording
-            if (!screenRecorderRef.current) {
-                screenRecorderRef.current = new ScreenRecorder();
-            }
-            
             try {
-                await screenRecorderRef.current.start(screenStream, {
+                // Prompt user to share tab natively for recording
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { displaySurface: 'browser' },
+                    audio: true,
+                    // @ts-ignore - Let's hint the browser to prefer the current tab to reduce friction
+                    preferCurrentTab: true
+                });
+
+                if (!screenRecorderRef.current) {
+                    screenRecorderRef.current = new ScreenRecorder();
+                }
+                
+                await screenRecorderRef.current.start(displayStream, {
                     videoBitsPerSecond: 2500000,
                     audioBitsPerSecond: 128000,
                 });
-                setIsRecordingScreen(true);
-                toast.success('Recording started');
                 
-                // Update duration every second
-                const interval = setInterval(() => {
-                    if (screenRecorderRef.current) {
-                        setRecordingDuration(screenRecorderRef.current.getDuration());
+                setIsRecording(true);
+                toast.success('Meeting Recording started');
+                
+                if (sfuSocket) {
+                    sfuSocket.emit('recording:status', { isRecording: true, userId: effectiveUserId });
+                }
+                setIsMeetingBeingRecorded(true);
+                
+                // Track ending natively (user clicks stop sharing on browser ribbon)
+                displayStream.getVideoTracks()[0].onended = async () => {
+                    if (isRecording) {
+                        toast.info('Recording stopped automatically.');
+                        toggleMeetingRecording();
                     }
-                }, 1000);
-                
-                // Cleanup interval when stopped
-                return () => clearInterval(interval);
+                };
+
             } catch (error) {
-                console.error('[Recording] Failed to start:', error);
-                toast.error('Failed to start recording');
+                console.error('[Recording] Failed to start user capture:', error);
+                toast.error('Recording cancelled or failed to start');
             }
         }
     };
@@ -1810,9 +1844,9 @@ export default function MeetingPage() {
         toast.success(`Quality set to ${preset}`);
         
         // Apply to current screen stream if sharing
-        if (screenStream) {
+        if (localScreenStream) {
             const { applyQualityConstraints } = await import('@/lib/webrtc-config');
-            await applyQualityConstraints(screenStream, preset);
+            await applyQualityConstraints(localScreenStream, preset);
         }
     };
 
@@ -2025,123 +2059,47 @@ export default function MeetingPage() {
 
     // Hardware Sync: Mic On/Off -> MediaStream
     useEffect(() => {
-        if (userStream) {
-            userStream.getAudioTracks().forEach(track => {
-                track.enabled = micOn;
-                console.log(`[Hardware] Set mic track enabled = ${micOn}`);
-            });
-        }
-    }, [micOn, userStream]);
+        sfuToggleMic(micOn);
+    }, [micOn, sfuToggleMic, localWebcamStream]);
 
     // Hardware Sync: Video On/Off -> MediaStream
     useEffect(() => {
-        if (userStream) {
-            userStream.getVideoTracks().forEach(track => {
-                // Enterprise Rule: Hardware cannot override DB state.
-                // WE assume videoOn IS the authoritative state (synced via WebSocket)
-                track.enabled = videoOn;
-                console.log(`[Hardware] Set video track enabled = ${videoOn}`);
-            });
-        }
-    }, [videoOn, userStream]);
+        sfuToggleVideo(videoOn);
+    }, [videoOn, sfuToggleVideo, localWebcamStream]);
 
     // Attach User Stream to Ref (Whenever layout changes)
     useEffect(() => {
-        if (videoRef.current && userStream) {
-            videoRef.current.srcObject = userStream;
+        // Only attach if NOT in lobby (Lobby handles its own preview via getUserMedia)
+        // OR if we want to share the same stream? 
+        // Lobby uses 'videoRef' too.
+        // But in Lobby, sfuConnected might be false, localWebcamStream null.
+        // So this effect primarily handles the IN-MEETING self-view.
+        if (isInLobby) return;
+
+        if (videoRef.current && localWebcamStream) {
+            videoRef.current.srcObject = localWebcamStream;
+        } else if (videoRef.current && !localWebcamStream) {
+             videoRef.current.srcObject = null;
         }
-    }, [userStream, isSharing, activePanel, viewMode, isInLobby]);
+    }, [localWebcamStream, isSharing, activePanel, viewMode, isInLobby]);
 
-    // Sync Local Stream to Presence Map (Crucial for VideoGrid)
-    useEffect(() => {
-        if (!effectiveUserId) return;
-
-        setVideoStreams(prev => {
-            const next = new Map(prev);
-            if (userStream) {
-                next.set(effectiveUserId, userStream);
-            } else {
-                next.delete(effectiveUserId);
-            }
-            return next;
-        });
-    }, [userStream, effectiveUserId]);
+    // Sync Local Stream to Presence Map (REMOVED - Handled by videoStreams useMemo)
 
     // Update Stream in All Active Peer Connections (Crucial for Remote Participants)
-    useEffect(() => {
-        if (!peerManagerRef.current) return;
-        
-        const peerIds = peerManagerRef.current.getPeerIds();
-        if (peerIds.length === 0) return;
-        
-        console.log('[WebRTC] Local stream changed, updating all peer connections');
-        
-        peerIds.forEach(peerId => {
-            const peer = peerManagerRef.current!.getPeer(peerId);
-            if (peer) {
-                // Remove old tracks and add new ones
-                if (userStream) {
-                    try {
-                        const pc = (peer as any)._pc as RTCPeerConnection;
-                        if (pc) {
-                            const senders = pc.getSenders();
-                            const videoTrack = userStream.getVideoTracks()[0];
-                            const audioTrack = userStream.getAudioTracks()[0];
-                            
-                            // Check for Video Sender
-                            const videoSender = senders.find(s => s.track?.kind === 'video');
-                            
-                            if (videoSender && videoTrack) {
-                                // CASE A: Replace Track (Seamless Switch)
-                                console.log('[WebRTC] Replacing video track for peer', peerId);
-                                videoSender.replaceTrack(videoTrack).catch(e => console.error("Replace video track failed:", e));
-                            } else if (!videoSender && videoTrack) {
-                                // CASE B: Add Stream (New Video) - Use Manager/SimplePeer API to ensure signaling
-                                console.log('[WebRTC] Adding new stream (video) for peer', peerId);
-                                peerManagerRef.current?.addStream(peerId, userStream);
-                                // Note: addStream adds all tracks from stream.
-                                // If we assume stream has both audio/video, this covers audio too.
-                                return; // Done for this peer
-                            }
-                            
-                            // Check for Audio Sender (only if we didn't do addStream above)
-                            const audioSender = senders.find(s => s.track?.kind === 'audio');
-                            if (audioSender && audioTrack) {
-                                console.log('[WebRTC] Replacing audio track for peer', peerId);
-                                audioSender.replaceTrack(audioTrack).catch(e => console.error("Replace audio track failed:", e));
-                            } else if (!audioSender && audioTrack) {
-                                // If we have audio but no video sender (and no video track to trigger addStream above)
-                                // We should probably addStream here too.
-                                console.log('[WebRTC] Adding new stream (audio) for peer', peerId);
-                                peerManagerRef.current?.addStream(peerId, userStream);
-                            }
-                        } else {
-                           // Fallback if PC not accessible (shouldn't happen with simple-peer)
-                           peerManagerRef.current?.addStream(peerId, userStream);
-                        }
-                    } catch (err) {
-                        console.error('[WebRTC] Error replacing tracks:', err);
-                    }
-                } else {
-                    // Stream removed (or raw getUserMedia stopped it)
-                    // We might want to removeStream? 
-                    // But usually we just stop tracks. simple-peer doesn't automatically remove stream on track stop.
-                }
-            }
-        });
-    }, [userStream]);
+    // Update Stream in All Active Peer Connections (REMOVED - SFU handles this)
+
 
     // Enterprise: Speaking Detection
     useEffect(() => {
-        if (userStream && effectiveUserId && !isInLobby && micOn) {
+        if (localWebcamStream && effectiveUserId && !isInLobby && micOn) {
             // Initialize speaking detector if not already created
             if (!speakingDetectorRef.current) {
                 speakingDetectorRef.current = new SpeakingDetector();
             }
 
             // Start detecting speaking
-            if (userStream.getAudioTracks().length > 0) {
-                speakingDetectorRef.current.start(userStream, (isSpeaking) => {
+            if (localWebcamStream.getAudioTracks().length > 0) {
+                speakingDetectorRef.current.start(localWebcamStream, (isSpeaking) => {
                 console.log('[SpeakingDetector] Speaking state changed:', isSpeaking);
                 
                 // Broadcast speaking state via WebSocket
@@ -2171,35 +2129,11 @@ export default function MeetingPage() {
         }
 
         // Cleanup on unmount
-        return () => {
-            if (speakingDetectorRef.current) {
-                speakingDetectorRef.current.stop();
-            }
-        };
-    }, [userStream, effectiveUserId, isInLobby, micOn, socket]);
 
-    // Attach Screen Stream to Ref
-    useEffect(() => {
-        if (screenRef.current && screenStream) {
-            screenRef.current.srcObject = screenStream;
-        }
-    }, [screenStream, isSharing]);
+    }, [localWebcamStream, effectiveUserId, isInLobby, micOn, socket]);
 
-    // Attach Remote Screen Stream to Ref
-    useEffect(() => {
-        if (remoteScreenRef.current && remoteScreenStream) {
-            console.log('[Video] Attaching remote screen stream to video element', remoteScreenStream);
-            remoteScreenRef.current.srcObject = remoteScreenStream;
-            remoteScreenRef.current.play().catch(err => {
-                console.error('[Video] Failed to play remote screen:', err);
-            });
-        } else {
-            console.log('[Video] Remote screen ref or stream missing:', {
-                hasRef: !!remoteScreenRef.current,
-                hasStream: !!remoteScreenStream
-            });
-        }
-    }, [remoteScreenStream]);
+    // Attach Screen Stream to Ref (REMOVED - Handled in Render)
+    // Attach Remote Screen Stream to Ref (REMOVED - Handled in Render)
 
     const handleJoin = () => {
         setIsInLobby(false);
@@ -2208,11 +2142,33 @@ export default function MeetingPage() {
         // This prevents the "Hardware Sync" hooks from reverting our state to the (stale) DB default
         if (effectiveUserId) {
             setParticipants(prev => {
-                return prev.map(p => 
-                    p.id === effectiveUserId 
-                    ? { ...p, isMuted: !micOn, isVideoOn: videoOn, status: 'In Meeting' }
-                    : p
-                );
+                const exists = prev.some(p => p.id === effectiveUserId);
+                if (exists) {
+                    return prev.map(p => 
+                        p.id === effectiveUserId 
+                        ? { ...p, isMuted: !micOn, isVideoOn: videoOn, status: 'In Meeting' }
+                        : p
+                    );
+                } else {
+                    // Optimistically add self if missing from backend list
+                    return [...prev, {
+                        id: effectiveUserId,
+                        name: user?.name || 'Me',
+                        role: String(effectiveUserId) === String(meetingData?.host_id) ? 'host' : 'participant',
+                        status: 'In Meeting',
+                        isMuted: !micOn,
+                        isHandRaised: false,
+                        isVideoOn: videoOn,
+                        avatarColor: 'bg-indigo-500',
+                        permissions: {
+                            canUnmute: true,
+                            canShareVideo: true,
+                            canShareScreen: true,
+                            canChat: true,
+                            canUseReactions: true
+                        }
+                    } as Participant];
+                }
             });
             
             // Also update Enterprise Presence
@@ -2255,6 +2211,15 @@ export default function MeetingPage() {
             }));
         }
     };
+
+    // Auto-Join Logic (Bypass Lobby)
+    useEffect(() => {
+        const autoJoin = searchParams.get('join') === '1';
+        if (autoJoin && !isInLobby && effectiveUserId && meetingData && !participants.some(p => p.id === effectiveUserId)) {
+            console.log('[AutoJoin] Triggering join logic for', effectiveUserId);
+            handleJoin();
+        }
+    }, [searchParams, effectiveUserId, meetingData, isInLobby, participants]);
 
     const handleLeave = () => {
         router.push("/dashboard");
@@ -2504,85 +2469,28 @@ export default function MeetingPage() {
                     © 2026 Life Meeting Technologies. All rights reserved.
                 </div>
 
-                {/* Sidebar Drawer for Background Settings */}
-                {
-                    showBackgroundPanel && (
-                        <div className="absolute right-0 top-0 bottom-0 w-[360px] bg-white border-l border-slate-200 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
-                            {/* Header */}
-                            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                                <h2 className="text-lg font-bold text-slate-900">Background settings</h2>
-                                <button onClick={() => setShowBackgroundPanel(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                                    <X className="w-5 h-5 text-slate-500" />
-                                </button>
-                            </div>
-
-                            {/* Options */}
-                            <div className="flex-1 overflow-y-auto p-5 scrollbar-hide">
-                                <div className="grid grid-cols-2 gap-3">
-                                    {/* None Option */}
-                                    <button
-                                        onClick={() => { setFilterMode('none'); }}
-                                        className={`group relative aspect-video rounded-lg border-2 overflow-hidden hover:border-indigo-600 transition-all ${filterMode === 'none' ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-slate-200'}`}
-                                    >
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 text-slate-500">
-                                            <div className="w-8 h-8 rounded-full border-2 border-slate-400 flex items-center justify-center mb-2">
-                                                <div className="w-0.5 h-full bg-slate-400 rotate-45 transform origin-center absolute"></div>
-                                            </div>
-                                            <span className="text-xs font-semibold">None</span>
-                                        </div>
-                                    </button>
-
-                                    {/* Blur Option */}
-                                    <button
-                                        onClick={() => { setFilterMode('blur'); }}
-                                        className={`group relative aspect-video rounded-lg border-2 overflow-hidden hover:border-indigo-600 transition-all ${filterMode === 'blur' ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-slate-200'}`}
-                                    >
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100">
-                                            <div className="w-full h-full absolute inset-0 bg-[url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center blur-sm opacity-50" />
-                                            <div className="relative z-10 flex flex-col items-center">
-                                                <Filter className="w-6 h-6 text-slate-700 mb-1" />
-                                                <span className="text-xs font-semibold text-slate-700">Blur</span>
-                                            </div>
-                                        </div>
-                                    </button>
-
-                                    {/* Image Options */}
-                                    {BACKGROUND_OPTIONS.map((bg, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => { setFilterMode('image'); setBackgroundImage(bg.url); }}
-                                            className={`group relative aspect-video rounded-lg border-2 overflow-hidden hover:border-indigo-600 transition-all ${filterMode === 'image' && backgroundImage === bg.url ? 'border-indigo-600 ring-2 ring-indigo-100' : 'border-slate-200'}`}
-                                        >
-                                            <img src={bg.url} alt={bg.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
-                                            {filterMode === 'image' && backgroundImage === bg.url && (
-                                                <div className="absolute inset-0 bg-indigo-900/10 flex items-center justify-center">
-                                                    <div className="bg-white rounded-full p-1 shadow-sm">
-                                                        <div className="w-2 h-2 bg-indigo-600 rounded-full" />
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </button>
-                                    ))}
-
-                                    {/* Add New Placeholder */}
-                                    <button className="group relative aspect-video rounded-lg border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50 transition-all flex flex-col items-center justify-center text-slate-500 hover:text-indigo-600">
-                                        <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-white flex items-center justify-center mb-2 transition-colors">
-                                            <span className="text-xl font-light">+</span>
-                                        </div>
-                                        <span className="text-xs font-medium">Add new</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Footer */}
-                            <div className="p-5 border-t border-slate-100 bg-slate-50">
-                                <Button className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={() => setShowBackgroundPanel(false)}>
-                                    Apply and join
-                                </Button>
-                            </div>
-                        </div>
-                    )
-                }
+                {/* Sidebar Drawer for Background Settings — real filter pipeline */}
+                {showBackgroundPanel && (
+                    <div className="absolute right-0 top-0 bottom-0 w-[380px] bg-[#111] border-l border-white/10 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+                        <BackgroundFilterPanel
+                            onClose={() => setShowBackgroundPanel(false)}
+                            onApply={(cfg) => {
+                                setBgConfig(cfg);
+                                sessionStorage.setItem('bgConfig', JSON.stringify(cfg));
+                                bgFilter.apply(cfg);
+                            }}
+                            onDisable={() => {
+                                setBgConfig({ mode: 'none' });
+                                sessionStorage.removeItem('bgConfig');
+                                bgFilter.disable();
+                            }}
+                            status={bgFilter.status}
+                            error={bgFilter.error}
+                            usingFallback={bgFilter.usingFallback}
+                            currentConfig={bgConfig}
+                        />
+                    </div>
+                )}
             </div >
         );
     }
@@ -2596,6 +2504,12 @@ export default function MeetingPage() {
             <header className="bg-white border-b border-slate-200 h-[64px] flex items-center justify-between px-4 shadow-sm z-50">
                 {/* Left: Branding & Info */}
                 <div className="flex items-center gap-4 min-w-[200px]">
+                    {isMeetingBeingRecorded && (
+                        <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-2.5 py-1 rounded-md border border-red-100 animate-in fade-in mr-2" title="Meeting is being recorded">
+                            <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div>
+                            <span className="text-[11px] font-bold uppercase tracking-wider">Rec</span>
+                        </div>
+                    )}
                     <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm relative group cursor-pointer" onClick={() => setShowMeetingInfo(!showMeetingInfo)}>
                         <Shield className="w-5 h-5 stroke-[1.5]" />
 
@@ -2706,118 +2620,71 @@ export default function MeetingPage() {
                         </div>
                     </button>
 
-                    {/* View Menu */}
-                    <div className="relative group">
-                        {showViewMenu && (
-                            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-white border border-slate-200 shadow-xl rounded-xl w-64 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                <div className="p-1">
-                                    <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Layouts</div>
-                                    <button onClick={() => { setViewMode('gallery'); setShowViewMenu(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${viewMode === 'gallery' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                        <Grid className="w-4 h-4" /> Gallery
-                                        {viewMode === 'gallery' && <span className="ml-auto text-indigo-600">✓</span>}
-                                    </button>
-                                    <button onClick={() => { setViewMode('speaker'); setShowViewMenu(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${viewMode === 'speaker' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                        <User className="w-4 h-4" /> Speaker
-                                        {viewMode === 'speaker' && <span className="ml-auto text-indigo-600">✓</span>}
-                                    </button>
-                                    <button onClick={() => { setViewMode('together'); setShowViewMenu(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${viewMode === 'together' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                        <Users2 className="w-4 h-4" /> Together Mode
-                                        {viewMode === 'together' && <span className="ml-auto text-indigo-600">✓</span>}
-                                    </button>
-                                </div>
-                                <div className="h-px bg-slate-100 my-1" />
-                                <div className="p-1">
-                                    <button onClick={toggleFullscreen} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                                        <Maximize className="w-4 h-4" /> {isFullscreen ? 'Exit Fullscreen' : 'Full Screen'}
-                                    </button>
-                                    <button onClick={() => setHideMe(!hideMe)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                                        <EyeOff className="w-4 h-4" /> {hideMe ? 'Show me' : 'Hide me'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                        <button
-                            onClick={() => setShowViewMenu(!showViewMenu)}
-                            className={`p-2.5 rounded-md transition-all ${showViewMenu ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'hover:bg-slate-100 text-slate-700'}`}
-                            title="View Options"
-                        >
-                            <div className="flex flex-col items-center gap-0.5">
-                                <LayoutDashboard className="w-5 h-5 stroke-[1.5]" />
-                                <span className="text-[10px] font-medium hidden md:block">View</span>
-                            </div>
-                        </button>
+                    {/* Enterprise View Menu */}
+                    <div className="relative group flex items-center">
+                        <EnterpriseViewMenu
+                            role={meetingData?.host_id === effectiveUserId ? 'host' : (user?.role?.toLowerCase() as 'guest' | 'presenter') || 'guest'}
+                            planTier={user?.plan_tier || 'FREE'}
+                            viewMode={viewMode}
+                            isFullscreen={isFullscreen}
+                            showSelfView={!hideMe}
+                            isLayoutLocked={isLayoutLocked}
+                            maxGallerySize={maxGallerySize}
+                            onSetMaxGallerySize={setMaxGallerySize}
+                            showDiagnosticsOverlay={showDiagnosticsOverlay}
+                            onToggleDiagnostics={() => setShowDiagnosticsOverlay(!showDiagnosticsOverlay)}
+                            onSetViewMode={(mode) => {
+                                if (isLayoutLocked && meetingData?.host_id !== effectiveUserId) {
+                                    toast.error("The host has locked the layout for this meeting.");
+                                    return;
+                                }
+                                setViewMode(mode);
+                            }}
+                            onToggleFullscreen={toggleFullscreen}
+                            onToggleSelfView={() => setHideMe(!hideMe)}
+                            onToggleLayoutLock={() => {
+                                setIsLayoutLocked(!isLayoutLocked);
+                                toast.success(isLayoutLocked ? "Layout unlocked for everyone" : "Layout locked for everyone");
+                            }}
+                        />
                     </div>
 
-                    {/* More Menu */}
-                    <div className="relative group">
-                        {showMoreMenu && (
-                            <div className="absolute top-full mt-2 right-0 bg-white border border-slate-200 shadow-xl rounded-xl w-72 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                <div className="p-1">
-                                    <button onClick={() => { setIsRecording(!isRecording); setShowMoreMenu(false); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors ${isRecording ? 'bg-red-50 text-red-600' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                        <Disc className={`w-5 h-5 ${isRecording ? 'fill-current animate-pulse' : ''}`} />
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium">{isRecording ? 'Stop Recording' : 'Start Recording'}</span>
-                                            <span className="text-xs opacity-70">Record meeting content</span>
-                                        </div>
-                                    </button>
-                                    <button onClick={() => { setAreCaptionsOn(!areCaptionsOn); setShowMoreMenu(false); }} className={`w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors ${areCaptionsOn ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                        <Captions className="w-5 h-5" />
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium">Turn {areCaptionsOn ? 'off' : 'on'} live captions</span>
-                                            <span className="text-xs opacity-70">English (US)</span>
-                                        </div>
-                                    </button>
-                                    
-                                    {/* DEBUG: Mock Data Generator */}
-                                    <button 
-                                        onClick={() => {
-                                            const mocks = Array.from({ length: 25 }).map((_, i) => ({
-                                                id: `mock-${Date.now()}-${i}`,
-                                                name: `Mock User ${i + 1}`,
-                                                role: 'guest',
-                                                status: 'In Meeting',
-                                                isMuted: true,
-                                                isVideoOn: Math.random() > 0.5, // Random video state
-                                                avatarColor: ['bg-red-100 text-red-700', 'bg-blue-100 text-blue-700', 'bg-green-100 text-green-700'][Math.floor(Math.random() * 3)],
-                                                joined_at: new Date().toISOString(),
-                                                permissions: {
-                                                    canUnmute: true, canShareVideo: true, canShareScreen: true, canChat: true, canUseReactions: true
-                                                }
-                                            }));
-                                            setParticipants(prev => [...prev, ...mocks] as any);
-                                            setShowMoreMenu(false);
-                                            toast.success("Added 25 mock participants");
-                                        }}
-                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-                                    >
-                                        <Users2 className="w-5 h-5 text-indigo-600" />
-                                        <div className="flex flex-col items-start">
-                                            <span className="font-medium text-indigo-700">Simulate 25 Participants</span>
-                                            <span className="text-xs opacity-70">Debug Tool</span>
-                                        </div>
-                                    </button>
-                                </div>
-                                <div className="h-px bg-slate-100 my-1" />
-                                <div className="p-1">
-                                    <button onClick={() => { setShowBackgroundPanel(true); setShowMoreMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                                        <Filter className="w-5 h-5" /> Background effects
-                                    </button>
-                                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                                        <Settings className="w-5 h-5" /> Device settings
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                        <button
-                            onClick={() => setShowMoreMenu(!showMoreMenu)}
-                            className={`p-2.5 rounded-md transition-all ${showMoreMenu ? 'bg-slate-100 text-slate-900' : 'hover:bg-slate-100 text-slate-700'}`}
-                            title="More Options"
-                        >
-                            <div className="flex flex-col items-center gap-0.5">
-                                <MoreHorizontal className="w-5 h-5 stroke-[1.5]" />
-                                <span className="text-[10px] font-medium hidden md:block">More</span>
-                            </div>
-                        </button>
+                    {/* Enterprise More Menu */}
+                    <div className="relative group flex items-center">
+                        <EnterpriseMoreMenu 
+                            role={meetingData?.host_id === effectiveUserId ? 'host' : (user?.role?.toLowerCase() as 'guest' | 'presenter') || 'guest'}
+                            planTier={user?.plan_tier || 'FREE'}
+                            isRecording={isRecording}
+                            areCaptionsOn={areCaptionsOn}
+                            isMeetingLocked={isMeetingLocked}
+                            onToggleRecording={toggleMeetingRecording}
+                            onToggleCaptions={() => {
+                                const newState = !areCaptionsOn;
+                                setAreCaptionsOn(newState);
+                                if (newState) setShowCaptionPanel(true);
+                                else setShowCaptionPanel(false);
+                            }}
+                            onOpenBackgroundPanel={() => setShowBackgroundPanel(true)}
+                            onOpenSettings={() => {}} 
+                            onSimulateParticipants={() => {
+                                const mocks = Array.from({ length: 25 }).map((_, i) => ({
+                                    id: `mock-${Date.now()}-${i}`,
+                                    name: `Mock User ${i + 1}`,
+                                    role: 'guest',
+                                    status: 'In Meeting',
+                                    isMuted: true,
+                                    isVideoOn: Math.random() > 0.5,
+                                    avatarColor: ['bg-red-100 text-red-700', 'bg-blue-100 text-blue-700', 'bg-green-100 text-green-700'][Math.floor(Math.random() * 3)],
+                                    joined_at: new Date().toISOString(),
+                                    permissions: {
+                                        canUnmute: true, canShareVideo: true, canShareScreen: true, canChat: true, canUseReactions: true
+                                    }
+                                }));
+                                setParticipants(prev => [...prev, ...mocks] as any);
+                                toast.success("Added 25 mock participants");
+                            }}
+                            onToggleMeetingLock={toggleMeetingLock}
+                        />
                     </div>
                 </div>
 
@@ -2846,13 +2713,16 @@ export default function MeetingPage() {
                             <Users className="w-4 h-4" />
                         </button>
                         
-                        {/* Reaction Picker */}
-                        <div className="relative">
-                            <ReactionPicker
-                                onSelect={sendReaction}
-                                disabled={!reactionPolicy.allow_reactions}
-                            />
-                        </div>
+                        {areCaptionsOn && (
+                            <button
+                                onClick={() => setShowCaptionPanel(!showCaptionPanel)}
+                                className={`p-2 rounded-md transition-all ${showCaptionPanel ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                title="Caption Settings"
+                            >
+                                <Captions className="w-4 h-4" />
+                            </button>
+                        )}
+                        
                     </div>
 
                     <div className="relative group flex items-center">
@@ -2867,29 +2737,6 @@ export default function MeetingPage() {
                             <DropdownMenuContent align="end" className="w-56 p-1">
                                 {meetingData?.host_id === user?.id ? (
                                     <>
-                                        {/* Screen Recording Controls */}
-                                        {isScreenSharing && (
-                                            <>
-                                                <DropdownMenuItem 
-                                                    className="cursor-pointer gap-2 py-2.5" 
-                                                    onClick={toggleScreenRecording}
-                                                >
-                                                    {isRecordingScreen ? (
-                                                        <>
-                                                            <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
-                                                            Stop Recording ({Math.floor(recordingDuration / 1000)}s)
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="w-4 h-4 rounded-full border-2 border-slate-400" />
-                                                            Record Screen Share
-                                                        </>
-                                                    )}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                            </>
-                                        )}
-                                        
                                         {/* Quality Presets */}
                                         {isScreenSharing && (
                                             <>
@@ -2967,12 +2814,19 @@ export default function MeetingPage() {
                             <div className="w-full h-full flex items-center justify-center p-4">
                                 <div className="w-full h-full bg-slate-900 rounded-xl overflow-hidden shadow-sm ring-1 ring-slate-200 group animate-in fade-in zoom-in-95 duration-500 relative flex items-center justify-center border-2 border-indigo-500">
                                     {sharingMode === 'screen' ? (
-                                        (screenStream || remoteScreenStream) ? (
+                                        (isScreenSharing ? localScreenStream : (activePresenterId ? videoStreams.get(`${activePresenterId}-screen`) : null)) ? (
                                             <video
-                                                ref={isScreenSharing ? screenRef : remoteScreenRef}
+                                                ref={(el) => {
+                                                    if (el) {
+                                                        const stream = isScreenSharing ? localScreenStream : (activePresenterId ? videoStreams.get(`${activePresenterId}-screen`) : null);
+                                                        if (stream && el.srcObject !== stream) {
+                                                            el.srcObject = stream;
+                                                        }
+                                                    }
+                                                }}
                                                 autoPlay
                                                 playsInline
-                                                muted
+                                                muted={isScreenSharing} // Mute local
                                                 className="w-full h-full object-contain"
                                             />
                                         ) : (
@@ -2991,17 +2845,13 @@ export default function MeetingPage() {
                                                 </div>
                                         )
                                     ) : (
-                                        /* Mock Whiteboard */
-                                        <div className="w-full h-full bg-white flex flex-col items-center justify-center relative">
-                                            <div className="absolute top-4 left-4 flex gap-2 bg-slate-100 p-2 rounded-lg shadow-sm">
-                                                {['black', 'red', 'blue', 'green'].map(c => (
-                                                    <div key={c} className={`w-6 h-6 rounded-full cursor-pointer hover:scale-110 transition-transform`} style={{ backgroundColor: c }}></div>
-                                                ))}
-                                            </div>
-                                            <h3 className="text-2xl font-bold text-slate-800 mb-2">Whiteboard</h3>
-                                            <p className="text-slate-500">Collaborative canvas (Preview)</p>
-                                            <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(#ccc_1px,transparent_1px)] [background-size:16px_16px]"></div>
-                                        </div>
+                                        /* Real Whiteboard */
+                                        <Whiteboard
+                                            socket={socket}
+                                            meetingId={meetingId as string}
+                                            effectiveUserId={effectiveUserId}
+                                            isPresenter={meetingData?.host_id === effectiveUserId || user?.role === 'host'}
+                                        />
                                     )}
 
 
@@ -3051,24 +2901,42 @@ export default function MeetingPage() {
                                 {!isSharing && viewMode !== 'together' && gridParticipants.length > 0 && effectiveUserId && (
                                     <div className="w-full h-full flex flex-col relative">
                                             {/* Render Grid */}
-                                            <VideoGrid
-                                                participants={gridParticipants}
-                                                videoStreams={videoStreams}
-                                                localUserId={effectiveUserId || ''}
-                                                pinnedUserIds={pinnedUserIds}
-                                                spotlightedUserIds={spotlightedUserIds}
-                                                onPinParticipant={(id) => {
-                                                    // Toggle pin logic
-                                                    setPinnedUserIds(prev =>
-                                                        prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
-                                                    );
-                                                }}
-                                                meetingId={meetingId}
-                                                currentUserRole={user?.role?.toLowerCase() || 'guest'} // Pass role
-                                            />
+                                            {(() => {
+                                                console.log('[VideoGrid] Rendering for:', gridParticipants.map(p => ({ id: p.user_id, video: p.is_video_on, hasStream: !!videoStreams.get(p.user_id) })));
+                                                return (
+                                                    <VideoGrid
+                                                        participants={gridParticipants}
+                                                        videoStreams={videoStreams}
+                                                        localUserId={effectiveUserId || ''}
+                                                        pinnedUserIds={pinnedUserIds}
+                                                        spotlightedUserIds={spotlightedUserIds}
+                                                        onPinParticipant={(id) => {
+                                                            // Toggle pin logic
+                                                            setPinnedUserIds(prev =>
+                                                                prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+                                                            );
+                                                        }}
+                                                        meetingId={meetingId}
+                                                        currentUserRole={user?.role?.toLowerCase() || 'guest'}
+                                                        maxGallerySize={maxGallerySize}
+                                                        viewMode={viewMode}
+                                                    />
+                                                );
+                                            })()}
                                     
                                         {/* Floating Reactions Overlay */}
                                         <div className="absolute inset-0 pointer-events-none z-50">
+
+                                        {/* ── Live Caption Overlay (captions-only — no controls) ── */}
+                                        {areCaptionsOn && (
+                                            <div className="absolute inset-0 pointer-events-none z-40">
+                                                <LiveCaptionOverlay
+                                                    captionLines={liveCaption.captionLines}
+                                                    fontSize={captionFontSize}
+                                                    bgOpacity={captionBgOpacity}
+                                                />
+                                            </div>
+                                        )}
                                             {reactions.map(reaction => (
                                                 <FloatingReaction
                                                     key={reaction.id}
@@ -3081,6 +2949,9 @@ export default function MeetingPage() {
                                                 />
                                             ))}
                                         </div>
+
+                                        {/* Network/Performance Overlay */}
+                                        {showDiagnosticsOverlay && <NetworkOverlay />}
                                     </div>
                                 )}
 
@@ -3291,11 +3162,14 @@ export default function MeetingPage() {
                                     {meetingData?.host_id === effectiveUserId && (
                                         <div className="p-4 border-t border-slate-200 bg-white">
                                             <div className="flex items-center gap-2">
-                                                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => handleParticipantAction('mute_all', 'all')}>
+                                                <Button variant="outline" size="sm" className="flex-1 text-xs px-2" onClick={() => handleParticipantAction('mute_all', 'all')}>
                                                     Mute All
                                                 </Button>
-                                                <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => handleParticipantAction('stop_all_video', 'all')}>
+                                                <Button variant="outline" size="sm" className="flex-1 text-xs px-2" onClick={() => handleParticipantAction('stop_all_video', 'all')}>
                                                     Stop Videos
+                                                </Button>
+                                                <Button variant="outline" size="sm" className="flex-1 text-xs px-2" onClick={() => handleParticipantAction('lower_all_hands', 'all')}>
+                                                    Lower Hands
                                                 </Button>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -3363,6 +3237,48 @@ export default function MeetingPage() {
                         </div>
                     )}
             </div>
+
+            {/* ── Background Filter Panel overlay (meeting room) ─────────── */}
+            {showBackgroundPanel && (
+                <div className="fixed right-0 top-0 bottom-0 w-[380px] z-[200] shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col bg-[#111] border-l border-white/10">
+                    <BackgroundFilterPanel
+                        onClose={() => setShowBackgroundPanel(false)}
+                        onApply={(cfg) => {
+                            setBgConfig(cfg);
+                            sessionStorage.setItem('bgConfig', JSON.stringify(cfg));
+                            bgFilter.apply(cfg);
+                        }}
+                        onDisable={() => {
+                            setBgConfig({ mode: 'none' });
+                            sessionStorage.removeItem('bgConfig');
+                            bgFilter.disable();
+                        }}
+                        status={bgFilter.status}
+                        error={bgFilter.error}
+                        usingFallback={bgFilter.usingFallback}
+                        currentConfig={bgConfig}
+                    />
+                </div>
+            )}
+            {/* ── Live Caption Settings Panel overlay ── */}
+            {showCaptionPanel && (
+                <CaptionSettingsPanel
+                    isListening={liveCaption.isListening}
+                    isSupported={liveCaption.isSupported}
+                    error={liveCaption.error}
+                    transcript={liveCaption.transcript}
+                    language={liveCaption.language}
+                    fontSize={captionFontSize}
+                    bgOpacity={captionBgOpacity}
+                    onSetLanguage={liveCaption.setLanguage}
+                    onSetFontSize={setCaptionFontSize}
+                    onSetBgOpacity={setCaptionBgOpacity}
+                    onDownloadTxt={liveCaption.downloadTxt}
+                    onDownloadVtt={liveCaption.downloadVtt}
+                    onClearTranscript={liveCaption.clearTranscript}
+                    onClose={() => setShowCaptionPanel(false)}
+                />
+            )}
         </div>
     );
 }

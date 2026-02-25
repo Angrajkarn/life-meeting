@@ -44,6 +44,10 @@ async function run() {
         if (msg.type === 'newProducer') {
             // Broadcast to all local clients in this room
             io.to(DEMO_ROOM_ID).emit('newProducer', msg);
+        } else if (msg.type === 'whiteboard:action') {
+            io.to(DEMO_ROOM_ID).emit('whiteboard:action', msg.payload);
+        } else if (msg.type === 'recording:status') {
+            io.to(DEMO_ROOM_ID).emit('recording:status', msg.payload);
         }
     });
 
@@ -60,9 +64,15 @@ async function run() {
         const participantData = {
             id: pId,
             socketId: socket.id,
-            joinedAt: Date.now()
+            joinedAt: Date.now(),
+            lastSeen: Date.now()
         };
         await redisAdapter.addParticipant(activeRoomId, participantData);
+        
+        // Track heartbeat locally for cleanup
+        (socket as any).lastSeen = Date.now();
+        (socket as any).activeRoomId = activeRoomId;
+        (socket as any).pId = pId;
         
         // Broadcast Join Event
         await redisAdapter.publishRoomEvent(activeRoomId, 'participantJoined', { participant: participantData });
@@ -98,6 +108,22 @@ async function run() {
             await redisAdapter.publishRoomEvent(activeRoomId, 'participantLeft', { participantId: pId });
         });
 
+        // 0. Heartbeat
+        socket.on('heartbeat', async () => {
+            const now = Date.now();
+            (socket as any).lastSeen = now;
+            await redisAdapter.updateParticipantHeartbeat(activeRoomId, pId, now);
+        });
+
+        // 0.5 Whiteboard & Recording Relay
+        socket.on('whiteboard:action', async (payload) => {
+            // Forward from one client to all others in the room via Redis
+            await redisAdapter.publishRoomEvent(activeRoomId, 'whiteboard:action', { payload });
+        });
+        socket.on('recording:status', async (payload) => {
+            await redisAdapter.publishRoomEvent(activeRoomId, 'recording:status', { payload });
+        });
+
         // 1. Get Router Capabilities
         socket.on('getRouterRtpCapabilities', (_data, callback) => {
             callback(router.rtpCapabilities);
@@ -107,7 +133,11 @@ async function run() {
         socket.on('getProducers', (_data, callback) => {
             const producerList: any[] = [];
             localProducers.forEach((producer) => {
-                producerList.push({ producerId: producer.id });
+                producerList.push({ 
+                    producerId: producer.id,
+                    producerPeerId: producer.appData.peerId,
+                    appData: producer.appData
+                });
             });
             callback(producerList);
         });
@@ -161,10 +191,12 @@ async function run() {
         });
 
         // 4. Produce
-        socket.on('produce', async ({ transportId, kind, rtpParameters }, callback) => {
+        socket.on('produce', async ({ transportId, kind, rtpParameters, appData }, callback) => {
              const transport = localTransports.get(transportId);
              if (transport) {
-                 const producer = await transport.produce({ kind, rtpParameters });
+                 // Inject peerId from socket context into appData
+                 const finalAppData = { ...appData, peerId: pId };
+                 const producer = await transport.produce({ kind, rtpParameters, appData: finalAppData });
                  
                  localProducers.set(producer.id, producer);
                  
@@ -174,15 +206,50 @@ async function run() {
                  await redisAdapter.publishRoomEvent(activeRoomId, 'newProducer', {
                      producerId: producer.id,
                      producerPeerId: pId,
-                     kind: producer.kind
+                     kind: producer.kind,
+                     appData: producer.appData // Pass source info
                  });
              }
+        });
+
+        // 4.5 Pause/Resume Producer
+        socket.on('pauseProducer', async ({ producerId }, callback) => {
+            const producer = localProducers.get(producerId);
+            if (producer) {
+                await producer.pause();
+                callback();
+                console.log(`[Producer Paused] ID: ${producerId}`);
+            } else {
+                callback({ error: 'Producer not found' });
+            }
+        });
+
+        socket.on('resumeProducer', async ({ producerId }, callback) => {
+            const producer = localProducers.get(producerId);
+            if (producer) {
+                await producer.resume();
+                callback();
+                console.log(`[Producer Resumed] ID: ${producerId}`);
+            } else {
+                callback({ error: 'Producer not found' });
+            }
         });
         
         // 5. Consume
         socket.on('consume', async ({ transportId, producerId, rtpCapabilities }, callback) => {
             const transport = localTransports.get(transportId);
-             if (transport && router.canConsume({ producerId, rtpCapabilities })) {
+            
+            if (!transport) {
+                console.error(`[Consume Failed] Transport ${transportId} not found in localTransports`);
+                return callback({ error: 'Transport not found' });
+            }
+            
+            try {
+                if (!router.canConsume({ producerId, rtpCapabilities })) {
+                    console.error(`[Consume Failed] router.canConsume returned false for producer: ${producerId}`);
+                    return callback({ error: 'Cannot consume (producer missing or capabilities mismatch)' });
+                }
+                
                  const consumer = await transport.consume({
                      producerId,
                      rtpCapabilities,
@@ -200,15 +267,35 @@ async function run() {
                  
                  // Resume consumer
                  await consumer.resume();
-             } else {
-                 callback({ error: 'Transport not found or cannot consume' });
-             }
+            } catch (err) {
+                 console.error('[Consume Failed] Exception during consume:', err);
+                 callback({ error: (err as any).message });
+            }
         });
     });
 
     server.listen(config.listenPort, () => {
       console.log(`SFU Server listening on port ${config.listenPort}`);
     });
+
+    // --- Peer Synchronization (Heartbeat Cleanup) ---
+    setInterval(() => {
+        const now = Date.now();
+        const sockets = io.sockets.sockets;
+        
+        sockets.forEach((socket) => {
+            const lastSeen = (socket as any).lastSeen;
+            if (lastSeen && now - lastSeen > 30000) { // 30 seconds timeout
+                const pId = (socket as any).pId;
+                const roomId = (socket as any).activeRoomId;
+                console.log(`[Heartbeat Timeout] Disconnecting zombie client: ${pId} (${socket.id})`);
+                
+                // Forcefully disconnect socket (triggers disconnect event, cleaning up Mediasoup and Redis)
+                socket.disconnect(true);
+            }
+        });
+    }, 15000); // Check every 15 seconds
+
   } catch (err) {
     console.error('Failed to start server:', err);
   }

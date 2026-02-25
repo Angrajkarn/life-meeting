@@ -22,8 +22,11 @@ interface ActivityLog {
 
 const fetcher = (url: string) => api.get(url);
 
-export function ActivityFeed() {
+export function ActivityFeed({ userId }: { userId?: string }) {
     const getKey = (pageIndex: number, previousPageData: ActivityLog[]) => {
+        // Skip if guest or no user
+        if (!userId || userId === 'guest' || userId.startsWith('guest_')) return null;
+        
         if (previousPageData && !previousPageData.length) return null; // reached the end
         return `/notifications/activity?limit=20&skip=${pageIndex * 20}`;
     };

@@ -10,21 +10,19 @@ export default function SFUPage() {
     // Ensure stable peerId across renders
     const [peerId] = useState(() => 'user-' + Math.floor(Math.random() * 1000));
 
-    const { connected, produce, remoteTracks } = useSFU(id, peerId);
+    const { connected, produce, remoteTracks, localWebcamStream } = useSFU(id, peerId);
     
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
-            const track = stream.getVideoTracks()[0];
-            await produce(track);
-        } catch (err) {
-            console.error('Camera Error:', err);
+    // Effect to attach local stream to video element
+    useEffect(() => {
+        if (videoRef.current && localWebcamStream) {
+            videoRef.current.srcObject = localWebcamStream;
         }
+    }, [localWebcamStream]);
+
+    const startCamera = async () => {
+        await produce();
     };
 
     return (
@@ -40,19 +38,35 @@ export default function SFUPage() {
                  <div className="border p-4 rounded">
                      <h2 className="mb-2 font-semibold">Local Video</h2>
                      <video ref={videoRef} autoPlay playsInline muted className="w-full bg-black aspect-video" />
-                     <button 
-                        onClick={startCamera}
-                        className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                     >
-                         Start Camera & Produce
-                     </button>
+                     <div className="flex gap-2 mt-2">
+                        <button 
+                            onClick={() => produce('webcam')}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                        >
+                            Start Camera
+                        </button>
+                        <button 
+                            onClick={() => produce('screen')}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                        >
+                            Share Screen
+                        </button>
+                     </div>
                  </div>
                  
                  <div className="border p-4 rounded">
                      <h2 className="mb-2 font-semibold">Remote Participants ({remoteTracks.length})</h2>
                      <div className="grid gap-2">
-                        {remoteTracks.map((item) => (
-                            <RemoteVideo key={item.producerId} track={item.track} />
+                        {remoteTracks.map((t) => (
+                           t.track.kind === 'video' ? (
+                                <RemoteVideo 
+                                    key={t.producerId} 
+                                    track={t.track} 
+                                    isScreen={t.appData?.source === 'screen'} 
+                                />
+                           ) : (
+                                <RemoteAudio key={t.producerId} track={t.track} />
+                           )
                         ))}
                         {remoteTracks.length === 0 && (
                             <div className="text-gray-500 italic">
@@ -66,7 +80,7 @@ export default function SFUPage() {
     );
 }
 
-function RemoteVideo({ track }: { track: MediaStreamTrack }) {
+function RemoteVideo({ track, isScreen }: { track: MediaStreamTrack, isScreen?: boolean }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     
     useEffect(() => {
@@ -76,18 +90,55 @@ function RemoteVideo({ track }: { track: MediaStreamTrack }) {
     }, [track]);
 
     return (
-        <div className="relative">
+        <div className={`relative ${isScreen ? 'col-span-2 row-span-2' : ''}`}> 
             <video 
                 ref={videoRef} 
                 autoPlay 
                 playsInline 
-                muted // Critical for autoplay policy
-                controls // Helpful for debugging
-                className="w-full bg-black aspect-video object-cover" 
+                muted // Critical for autoplay policy on video
+                controls 
+                className={`w-full bg-black ${isScreen ? 'aspect-video object-contain' : 'aspect-video object-cover'}`}
             />
-            <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                Track: {track.id.slice(0, 8)}... ({track.readyState})
+            <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded flex items-center gap-2">
+                <span>{track.id.slice(0, 8)}... ({track.readyState})</span>
+                {isScreen && <span className="bg-green-500 text-white px-1 rounded text-[10px] font-bold">SCREEN</span>}
             </div>
         </div>
+    );
+}
+
+function RemoteAudio({ track }: { track: MediaStreamTrack }) {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [autoPlayError, setAutoPlayError] = useState(false);
+
+    useEffect(() => {
+        if (audioRef.current) {
+            const stream = new MediaStream([track]);
+            audioRef.current.srcObject = stream;
+            // Attempt to play
+            audioRef.current.play().catch(e => {
+                console.error("Audio autoplay blocked:", e);
+                setAutoPlayError(true);
+            });
+        }
+    }, [track]);
+
+    return (
+        <>
+            <audio ref={audioRef} autoPlay />
+            {autoPlayError && (
+                <div className="fixed bottom-4 right-4 z-50">
+                    <button 
+                        onClick={() => {
+                            audioRef.current?.play();
+                            setAutoPlayError(false);
+                        }}
+                        className="bg-red-600 text-white px-4 py-2 rounded shadow-lg hover:bg-red-700 transition-colors"
+                    >
+                        Click to Enable Audio from {track.id.slice(0,4)}
+                    </button>
+                </div>
+            )}
+        </>
     );
 }

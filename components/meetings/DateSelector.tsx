@@ -34,7 +34,7 @@ export function DateSelector({ selectedDate, onDateSelect }: DateSelectorProps) 
 
       <div 
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth px-4 flex-1 items-center min-w-0"
+        className="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth px-4 flex-1 items-center min-w-0 max-w-full"
       >
         {dates.map((date) => {
           const isSelected = isSameDay(date, selectedDate);

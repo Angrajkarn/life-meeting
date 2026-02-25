@@ -1,0 +1,9 @@
+app/sfu/[id]/page.tsx(13,47): error TS2339: Property 'localVideoStream' does not exist on type '{ connected: boolean; produce: (source?: "webcam" | "screen") => Promise<void>; stopProducing: (source: "webcam" | "screen") => Promise<void>; remoteTracks: { producerId: string; producerPeerId: string; track: MediaStreamTrack; appData?: any; }[]; localWebcamStream: MediaStream | null; localScreenStream: MediaStream...'.
+components/meetings/EnterpriseMoreMenu.tsx(61,15): error TS2345: Argument of type '(t: any) => Element' is not assignable to parameter of type 'titleT'.
+  Type '(t: any) => Element' is not assignable to type '() => ReactNode'.
+    Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/meetings/EnterpriseMoreMenu.tsx(61,16): error TS7006: Parameter 't' implicitly has an 'any' type.
+components/meetings/EnterpriseViewMenu.tsx(62,15): error TS2345: Argument of type '(t: any) => Element' is not assignable to parameter of type 'titleT'.
+  Type '(t: any) => Element' is not assignable to type '() => ReactNode'.
+    Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/meetings/EnterpriseViewMenu.tsx(62,16): error TS7006: Parameter 't' implicitly has an 'any' type.

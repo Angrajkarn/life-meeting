@@ -51,6 +51,15 @@ class RedisSignalingAdapter {
         const channel = `${this.channelPrefix}${meetingId}`;
         await this.sub.unsubscribe(channel);
     }
+    async updateParticipantHeartbeat(meetingId, participantId, timestamp) {
+        const key = `${this.keyPrefix}${meetingId}:participants`;
+        const dataStr = await this.cmd.hget(key, participantId);
+        if (dataStr) {
+            const data = JSON.parse(dataStr);
+            data.lastSeen = timestamp;
+            await this.cmd.hset(key, participantId, JSON.stringify(data));
+        }
+    }
 }
 // 2. In-Memory Mock Implementation (Fallback)
 class InMemorySignalingAdapter {
@@ -85,6 +94,13 @@ class InMemorySignalingAdapter {
     }
     async unsubscribeFromRoom(meetingId) {
         this.emitter.removeAllListeners(`room:${meetingId}`);
+    }
+    async updateParticipantHeartbeat(meetingId, participantId, timestamp) {
+        const map = this.participants.get(meetingId);
+        if (map && map.has(participantId)) {
+            const participant = map.get(participantId);
+            participant.lastSeen = timestamp;
+        }
     }
 }
 // Export Singleton (Defaulting to Mock for stability if no env var)

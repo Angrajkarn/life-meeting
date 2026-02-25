@@ -36,6 +36,11 @@ async def create_participant_presence(meeting_id: str, user_id: str, name: str, 
         "is_speaking": False,
         "is_presenting": False,
         "is_hand_raised": False,
+        "hand_raised": {
+            "is_raised": False,
+            "raised_at": None,
+            "sequence_number": 0
+        },
         
         # Avatar
         "avatar_color": generate_avatar_color(user_id)

@@ -83,6 +83,11 @@ async def websocket_endpoint(websocket: WebSocket, meeting_id: str, user_id: str
                 "is_speaking": participant_data["is_speaking"],
                 "is_presenting": participant_data["is_presenting"],
                 "is_hand_raised": participant_data["is_hand_raised"],
+                "hand_raised": participant_data.get("hand_raised", {
+                    "is_raised": False,
+                    "raised_at": None,
+                    "sequence_number": 0
+                }),
                 "avatar_color": participant_data["avatar_color"],
                 "joined_at": participant_data["joined_at"].isoformat()
             }
@@ -103,6 +108,11 @@ async def websocket_endpoint(websocket: WebSocket, meeting_id: str, user_id: str
                     "is_speaking": p.get("is_speaking", False),
                     "is_presenting": p.get("is_presenting", False),
                     "is_hand_raised": p.get("is_hand_raised", False),
+                    "hand_raised": p.get("hand_raised", {
+                        "is_raised": False,
+                        "raised_at": None,
+                        "sequence_number": 0
+                    }),
                     "avatar_color": p["avatar_color"],
                     "joined_at": p["joined_at"].isoformat() if isinstance(p["joined_at"], datetime) else p["joined_at"]
                 }
@@ -852,6 +862,95 @@ async def websocket_endpoint(websocket: WebSocket, meeting_id: str, user_id: str
                     
                     print(f"[Speaking] {user_name} is {'speaking' if is_speaking else 'not speaking'}")
 
+                # --- RAISE HAND (Enterprise Queue) ---
+                elif msg_type == "raise_hand":
+                    action = data_json.get("action")
+                    target_id = data_json.get("target_user_id", user_id)
+                    
+                    # Fetch Meeting & Requester Role
+                    meeting = await meetings_collection.find_one({"_id": ObjectId(meeting_id)})
+                    if not meeting: continue
+                    
+                    requester_role = "guest"
+                    if meeting.get("host_id") == user_id:
+                        requester_role = "host"
+                    else:
+                        participants = meeting.get("participants", [])
+                        p_req = next((p for p in participants if p.get("user_id") == user_id), None)
+                        if p_req: requester_role = p_req.get("role", "guest")
+                    
+                    is_admin = requester_role in ["host", "co-host"]
+                    
+                    if action == "raise":
+                        # Generate atomic sequence number
+                        seq_res = await meetings_collection.find_one_and_update(
+                            {"_id": ObjectId(meeting_id)},
+                            {"$inc": {"hand_sequence": 1}},
+                            return_document=True
+                        )
+                        seq_num = seq_res.get("hand_sequence", 1) if seq_res else 1
+                        
+                        hand_state = {
+                            "is_raised": True,
+                            "raised_at": datetime.now(timezone.utc).isoformat(),
+                            "sequence_number": seq_num
+                        }
+                        
+                        await meetings_collection.update_one(
+                            {"_id": ObjectId(meeting_id), "participants.user_id": user_id},
+                            {"$set": {"participants.$.hand_raised": hand_state, "participants.$.is_hand_raised": True}}
+                        )
+                        
+                        await manager.broadcast(json.dumps({
+                            "type": "hand_update",
+                            "user_id": user_id,
+                            "hand_state": hand_state
+                        }), meeting_id)
+
+                    elif action == "lower":
+                        # Only self or host can lower hand
+                        if user_id != target_id and not is_admin:
+                            continue
+                            
+                        hand_state = {
+                            "is_raised": False,
+                            "raised_at": None,
+                            "sequence_number": 0
+                        }
+                        
+                        await meetings_collection.update_one(
+                            {"_id": ObjectId(meeting_id), "participants.user_id": target_id},
+                            {"$set": {"participants.$.hand_raised": hand_state, "participants.$.is_hand_raised": False}}
+                        )
+                        
+                        await manager.broadcast(json.dumps({
+                            "type": "hand_update",
+                            "user_id": target_id,
+                            "hand_state": hand_state
+                        }), meeting_id)
+
+                    elif action == "lower_all":
+                        if not is_admin: continue
+                        
+                        hand_state = {
+                            "is_raised": False,
+                            "raised_at": None,
+                            "sequence_number": 0
+                        }
+                        
+                        await meetings_collection.update_one(
+                            {"_id": ObjectId(meeting_id)},
+                            {"$set": {
+                                "participants.$[].hand_raised": hand_state,
+                                "participants.$[].is_hand_raised": False
+                            }}
+                        )
+                        
+                        await manager.broadcast(json.dumps({
+                            "type": "hand_update_bulk",
+                            "action": "lower_all",
+                            "updated_by": user_id
+                        }), meeting_id)
 
                 # --- 6. SCREEN SHARE (Enterprise) ---
                 elif msg_type == "screen_share":

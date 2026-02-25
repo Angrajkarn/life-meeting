@@ -5,6 +5,7 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { ActivityStats } from "@/components/dashboard/activity-stats";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
@@ -42,10 +43,12 @@ export default function DashboardPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                <Link href="/dashboard/calendar">
                     <Button variant="outline" className="border-slate-200 bg-white/50 backdrop-blur-sm hover:bg-white text-slate-700 font-medium h-10 px-4 shadow-sm">
                         <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
                         My Calendar
                     </Button>
+                </Link>
                 </div>
             </div>
 
@@ -74,10 +77,13 @@ export default function DashboardPage() {
                         <UpcomingMeetingCard />
                     </section>
 
-                    {/* Timeline / Today's Agenda (Future Placeholder) */}
-                    <div className="bg-slate-50/50 rounded-3xl border border-slate-200/60 p-6 min-h-[120px] flex items-center justify-center text-slate-400 text-sm font-medium border-dashed">
-                        Today's Agenda Timeline (Coming Soon)
-                    </div>
+                    {/* Timeline / Today's Calendar */}
+                    <Link href="/dashboard/calendar">
+                        <div className="bg-indigo-50 hover:bg-indigo-100 transition-colors rounded-3xl border border-indigo-200/60 p-6 min-h-[100px] flex items-center justify-center gap-3 cursor-pointer group">
+                            <CalendarIcon className="w-5 h-5 text-indigo-400 group-hover:text-indigo-600 transition-colors" />
+                            <span className="text-sm font-bold text-indigo-400 group-hover:text-indigo-600 transition-colors">Open Full Calendar →</span>
+                        </div>
+                    </Link>
                 </div>
 
                 {/* Right Column (Stats & Utility) */}
@@ -87,9 +93,8 @@ export default function DashboardPage() {
                         <ActivityStats />
                     </section>
 
-                    {/* Recent Activity Feed */}
                     <section>
-                        <ActivityFeed />
+                        <ActivityFeed userId={user?.id} />
                     </section>
                 </div>
             </div>

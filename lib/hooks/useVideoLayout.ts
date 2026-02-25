@@ -9,6 +9,8 @@ interface UseVideoLayoutProps {
     spotlightedUserIds?: string[];
     activeSpeakerId?: string | null;
     pinnedUserIds?: string[]; // Prop-based override (e.g. from parent)
+    maxGallerySize?: number;
+    viewMode?: string;
 }
 
 export function useVideoLayout({
@@ -16,7 +18,9 @@ export function useVideoLayout({
     localUserId,
     spotlightedUserIds = [],
     activeSpeakerId = null,
-    pinnedUserIds: propPinnedUserIds = []
+    pinnedUserIds: propPinnedUserIds = [],
+    maxGallerySize = 25,
+    viewMode = 'gallery'
 }: UseVideoLayoutProps) {
     // Local State
     const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
@@ -81,9 +85,8 @@ export function useVideoLayout({
     }, [participants, pinnedUserIds, spotlightedUserIds, activeSpeakerId]);
 
     // Responsive Tile Count
-    // This could be dynamic based on window size, but for now hardcode or use helper
-    // Mobile: 6, Desktop: 25
-    const maxTilesPerPage = 25; 
+    // Use the maxGallerySize provided by the View Menu for enterprise layout options
+    const maxTilesPerPage = maxGallerySize; 
 
     // Pagination Logic
     const totalPages = Math.ceil(sortedParticipants.length / maxTilesPerPage);
@@ -100,18 +103,33 @@ export function useVideoLayout({
         return sortedParticipants.slice(start, start + maxTilesPerPage);
     }, [sortedParticipants, page, maxTilesPerPage]);
 
-    // Layout Mode Automation
-    // Automatically switch to sidebar if someone is pinned or spotlighted
+    // Layout Mode Automation (The "AI" Layout Engine)
+    // - 'speaker': Forces sidebar with active speaker on main stage
+    // - 'gallery': Forces grid mode (unless someone is screen sharing)
+    // - 'ai': Smart switching based on meeting context
     useEffect(() => {
-        if (pinnedUserIds.length > 0 || spotlightedUserIds.length > 0 || participants.some(p => p.is_presenting)) {
-            setLayoutMode('sidebar');
+        const isSomeonePresenting = participants.some(p => p.is_presenting);
+        const hasSpecialUser = pinnedUserIds.length > 0 || spotlightedUserIds.length > 0;
+
+        if (viewMode === 'speaker') {
+            setLayoutMode('speaker');
+        } else if (viewMode === 'ai') {
+            if (isSomeonePresenting || hasSpecialUser || activeSpeakerId) {
+                // In AI mode, if someone talks, or shares screen, auto-focus them
+                setLayoutMode('speaker');
+            } else {
+                setLayoutMode('grid');
+            }
         } else {
-            // Only revert if we are in sidebar and no one is special anymore. 
-            // If user manually switched to 'speaker', we might want to keep it?
-            // For now, auto-revert to grid for simplicity unless manual override implemented later.
-            setLayoutMode('grid');
+            // Default/Gallery mode (or 'together')
+            if (hasSpecialUser || isSomeonePresenting) {
+                // Must show sidebar if presenting/pinned even in gallery mode
+                setLayoutMode('sidebar');
+            } else {
+                setLayoutMode('grid');
+            }
         }
-    }, [pinnedUserIds.length, spotlightedUserIds.length, participants]);
+    }, [pinnedUserIds.length, spotlightedUserIds.length, participants, viewMode, activeSpeakerId]);
 
     // Categorize Participants for Sidebar Mode
     const { mainStageParticipants, sidebarParticipants } = useMemo(() => {
@@ -136,8 +154,8 @@ export function useVideoLayout({
                     if (spotlighted.length > 0) {
                          main = spotlighted;
                     }
-                    // Priority 4: Active Speaker (if Mode is Speaker)
-                    else if (layoutMode === 'speaker' && activeSpeakerId) {
+                    // Priority 4: Active Speaker (if Mode is Speaker or AI)
+                    else if ((layoutMode === 'speaker' || viewMode === 'ai') && activeSpeakerId) {
                         const speaker = participants.find(p => p.user_id === activeSpeakerId);
                         if (speaker) main = [speaker];
                     }

@@ -128,7 +128,7 @@ export function UpcomingMeetings({ userId }: { userId: string }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50 p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="flex flex-col w-full max-w-full overflow-x-hidden bg-slate-50/50 p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>

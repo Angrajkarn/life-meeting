@@ -18,19 +18,19 @@ export default function DashboardLayout({
     return (
         <AuthGuard>
             <UserPreferencesProvider>
-                <div className="h-screen overflow-hidden relative flex">
-                    <div className="hidden h-full md:flex md:w-72 md:flex-col md:fixed md:inset-y-0 z-50 bg-white border-r border-slate-200">
+                <div className="h-screen overflow-hidden relative flex w-full max-w-full">
+                    <div className="hidden h-full md:flex md:w-[60px] md:flex-col md:fixed md:inset-y-0 z-50">
                         <Sidebar />
                     </div>
 
-                    <div className="md:pl-72 flex-1 flex flex-col min-h-screen bg-slate-50">
+                    <div className="md:pl-[60px] flex-1 flex flex-col min-h-screen bg-slate-50 min-w-0 overflow-x-hidden">
                         {/* Topbar */}
                         <div className="shrink-0">
                             <DashboardHeader />
                         </div>
 
                         <main className={cn(
-                            "flex-1 overflow-auto",
+                            "flex-1 overflow-y-auto overflow-x-hidden",
                             (isChat || pathname.startsWith('/dashboard/settings')) ? "p-0 h-full" : "p-8"
                         )}>
                             {children}

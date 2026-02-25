@@ -8,14 +8,7 @@ import { useVideoLayout } from '../lib/hooks/useVideoLayout';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 
-interface VideoGridProps {
-  participants: ParticipantPresence[];
-  videoStreams: Map<string, MediaStream>;
-  localUserId: string;
-  pinnedUserIds?: string[];  // Array of pinned user IDs
-  spotlightedUserIds?: string[];  // Array of spotlighted user IDs
-  onPinParticipant?: (userId: string) => void;
-}
+
 
 interface VideoGridProps {
   participants: ParticipantPresence[];
@@ -28,6 +21,8 @@ interface VideoGridProps {
   currentUserRole?: string;
   meetingId?: string;
   activeSpeakerId?: string | null;
+  maxGallerySize?: number;
+  viewMode?: string;
 }
 
 export function VideoGrid({
@@ -39,7 +34,9 @@ export function VideoGrid({
   onPinParticipant,
   activeSpeakerId = null,
   currentUserRole,
-  meetingId
+  meetingId,
+  maxGallerySize = 25,
+  viewMode = 'gallery'
 }: VideoGridProps) {
   const {
     paginatedParticipants,
@@ -57,7 +54,9 @@ export function VideoGrid({
     localUserId,
     spotlightedUserIds,
     activeSpeakerId,
-    pinnedUserIds
+    pinnedUserIds,
+    maxGallerySize,
+    viewMode
   });
 
   // Get aspect ratio for tiles
